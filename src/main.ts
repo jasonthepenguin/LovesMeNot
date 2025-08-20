@@ -9,6 +9,9 @@ let lovesMe = true;
 let statusText: HTMLDivElement;
 let flowerContainer: HTMLDivElement;
 
+let crushName: string | null = null;
+let letterOverlay: HTMLDivElement | null = null;
+
 // Scene object refs for animation
 let yoshiHeadGroup: THREE.Group;
 let yoshiTail: THREE.Mesh;
@@ -1117,7 +1120,7 @@ function createUI() {
   // Create new round button (hidden initially)
   const newRoundBtn = document.createElement('button');
   newRoundBtn.id = 'new-round-btn';
-  newRoundBtn.textContent = 'New Flower 🌸';
+  newRoundBtn.textContent = 'Try Again?';
   newRoundBtn.style.display = 'none';
   newRoundBtn.addEventListener('click', () => {
     newRoundBtn.style.display = 'none';
@@ -1130,6 +1133,44 @@ function createUI() {
     }, 500);
   });
   document.body.appendChild(newRoundBtn);
+}
+
+// Intro overlay: romantic letter asking for crush's name
+function createLoveLetterOverlay() {
+  letterOverlay = document.createElement('div');
+  letterOverlay.className = 'letter-overlay fade-in';
+  letterOverlay.innerHTML = `
+    <div class="letter-card">
+      <div class="letter-hearts"></div>
+      <h1 class="letter-title">To My Secret Crush</h1>
+      <p class="letter-body">Write their name below, then pluck the petals to divine your fate.</p>
+      <div class="letter-input-row">
+        <input id="crush-input" type="text" maxlength="42" placeholder="Their name..." />
+        <button id="crush-start-btn">Seal & Begin 💌</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(letterOverlay);
+
+  const input = letterOverlay.querySelector('#crush-input') as HTMLInputElement;
+  const btn = letterOverlay.querySelector('#crush-start-btn') as HTMLButtonElement;
+
+  const begin = () => {
+    const name = (input?.value || '').trim();
+    crushName = name || 'Your Crush';
+    if (statusText) {
+      statusText.textContent = `Will ${crushName} love me? Click a petal to find out!`;
+    }
+    if (letterOverlay) {
+      letterOverlay.classList.remove('fade-in');
+      letterOverlay.classList.add('fade-out');
+      setTimeout(() => { letterOverlay?.remove(); letterOverlay = null; }, 600);
+    }
+  };
+
+  btn?.addEventListener('click', begin);
+  input?.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Enter') begin(); });
+  setTimeout(() => input?.focus(), 0);
 }
 
 function pullPetal(petal: HTMLElement) {
@@ -1148,7 +1189,8 @@ function pullPetal(petal: HTMLElement) {
   
   // Update status text
   if (currentPetal === totalPetals) {
-    statusText.textContent = lovesMe ? '💖 LOVES ME! 💖' : '💔 Loves me not... 💔';
+    const nameForMsg = crushName || 'Your Crush';
+    statusText.textContent = lovesMe ? `💖 ${nameForMsg} loves you! 💖` : `💔 ${nameForMsg} loves you not... 💔`;
     statusText.classList.add(lovesMe ? 'loves-me' : 'loves-me-not');
     // Trigger particles and yoshi emotion
     triggerRoundEndEffects(lovesMe);
@@ -1188,7 +1230,7 @@ function resetGame() {
   updateFlowerFace(true);
   
   // Reset text
-  statusText.textContent = 'Click on a petal to start!';
+  statusText.textContent = `Will ${crushName || 'Your Crush'} love me? Click a petal to find out!`;
   statusText.classList.remove('loves-me', 'loves-me-not');
 }
 
@@ -1201,6 +1243,7 @@ window.addEventListener('resize', () => {
 
 // Initialize UI
 createUI();
+createLoveLetterOverlay();
 
 // Update camera info display
 function updateCameraInfo() {
@@ -1320,7 +1363,7 @@ function animate() {
 
   // Drift clouds
   for (const cg of cloudGroups) {
-    cg.position.x += (cg.userData.speed || 0.2) * 0.3;
+    cg.position.x += (cg.userData.speed || 0.2) * 0.18;
     cg.position.y += Math.sin(t * 0.5) * 0.002 * (cg.userData.amp || 2.5);
     if (cg.position.x > 100) cg.position.x = -100;
   }
