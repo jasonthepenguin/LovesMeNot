@@ -6,9 +6,8 @@ import './style.css';
 let currentPetal = 0;
 let totalPetals = 8;
 let lovesMe = true;
-let petals: THREE.Mesh[] = [];
-let flowerFace: THREE.Mesh;
 let statusText: HTMLDivElement;
+let flowerContainer: HTMLDivElement;
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -223,85 +222,58 @@ function createYoshi() {
   return group;
 }
 
-// Create flower
-function createFlower() {
-  const group = new THREE.Group();
+// Create 2D flower UI
+function create2DFlower() {
+  flowerContainer = document.createElement('div');
+  flowerContainer.className = 'flower-container';
+  flowerContainer.innerHTML = `
+    <div class="flower">
+      <div class="flower-center" id="flower-face">
+        <div class="flower-eyes">
+          <div class="eye"></div>
+          <div class="eye"></div>
+        </div>
+        <div class="flower-mouth happy"></div>
+      </div>
+      <div class="petals" id="petals-container"></div>
+    </div>
+  `;
+  document.body.appendChild(flowerContainer);
   
-  // Stem
-  const stemGeometry = new THREE.CylinderGeometry(0.2, 0.3, 5, 8);
-  const stemMaterial = new THREE.MeshPhongMaterial({ color: 0x228822 });
-  const stem = new THREE.Mesh(stemGeometry, stemMaterial);
-  stem.position.y = 2.5;
-  stem.castShadow = true;
-  group.add(stem);
-  
-  // Flower center (face)
-  const faceGeometry = new THREE.SphereGeometry(1.2, 16, 16);
-  const faceMaterial = new THREE.MeshPhongMaterial({ color: 0xffaa00 });
-  flowerFace = new THREE.Mesh(faceGeometry, faceMaterial);
-  flowerFace.position.y = 5.5;
-  flowerFace.castShadow = true;
-  group.add(flowerFace);
-  
-  // Create face texture (simple eyes and mouth)
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d')!;
-  
-  function updateFace(happy: boolean) {
-    ctx.clearRect(0, 0, 256, 256);
-    ctx.fillStyle = '#ffaa00';
-    ctx.fillRect(0, 0, 256, 256);
-    
-    // Eyes
-    ctx.fillStyle = '#000000';
-    ctx.beginPath();
-    ctx.arc(80, 100, 15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(176, 100, 15, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Mouth
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    if (happy) {
-      ctx.arc(128, 140, 40, 0, Math.PI);
-    } else {
-      ctx.arc(128, 180, 40, Math.PI, Math.PI * 2);
-    }
-    ctx.stroke();
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    flowerFace.material = new THREE.MeshPhongMaterial({ map: texture });
-  }
-  
-  updateFace(true);
-  
-  // Petals
-  const petalGeometry = new THREE.SphereGeometry(0.8, 8, 8);
-  const petalMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+  // Create petals
+  createPetals();
+}
+
+function createPetals() {
+  const petalsContainer = document.getElementById('petals-container')!;
+  petalsContainer.innerHTML = '';
   
   for (let i = 0; i < totalPetals; i++) {
-    const angle = (i / totalPetals) * Math.PI * 2;
-    const petal = new THREE.Mesh(petalGeometry, petalMaterial);
-    petal.position.set(
-      Math.cos(angle) * 2.2,
-      5.5,
-      Math.sin(angle) * 2.2
-    );
-    petal.scale.set(1.2, 1, 0.6);
-    petal.lookAt(flowerFace.position);
-    petal.castShadow = true;
-    petal.userData = { index: i, pulled: false };
-    petals.push(petal);
-    group.add(petal);
+    const angle = (i / totalPetals) * Math.PI * 2 - Math.PI / 2; // Start from top
+    const petal = document.createElement('div');
+    petal.className = 'petal';
+    petal.dataset.index = i.toString();
+    
+    // Position petals in a circle
+    const x = Math.cos(angle) * 60;
+    const y = Math.sin(angle) * 60;
+    const rotationDeg = (angle * 180 / Math.PI) + 90;
+    petal.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) rotate(${rotationDeg}deg)`;
+    
+    petal.addEventListener('click', () => pullPetal(petal));
+    petalsContainer.appendChild(petal);
   }
-  
-  group.userData = { updateFace };
-  return group;
+}
+
+function updateFlowerFace(happy: boolean) {
+  const mouth = document.querySelector('.flower-mouth')!;
+  if (happy) {
+    mouth.classList.add('happy');
+    mouth.classList.remove('sad');
+  } else {
+    mouth.classList.add('sad');
+    mouth.classList.remove('happy');
+  }
 }
 
 // Create ground
@@ -351,10 +323,6 @@ const yoshi = createYoshi();
 yoshi.position.set(0, 8, 3);
 scene.add(yoshi);
 
-const flower = createFlower();
-flower.position.set(5, 0, 8);
-scene.add(flower);
-
 // UI Elements
 function createUI() {
   // Status text
@@ -368,59 +336,29 @@ function createUI() {
   instructions.className = 'instructions';
   instructions.innerHTML = `
     <h2>Loves Me Not</h2>
-    <p>Click on the white petals to pull them off!</p>
+    <p>Click on the petals below to pull them off!</p>
     <button id="reset-btn">New Flower</button>
   `;
   document.body.appendChild(instructions);
   
   // Reset button
   document.getElementById('reset-btn')?.addEventListener('click', resetGame);
+  
+  // Create 2D flower
+  create2DFlower();
 }
 
-// Raycaster for mouse interaction
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-
-function onMouseClick(event: MouseEvent) {
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+function pullPetal(petal: HTMLElement) {
+  if (petal.classList.contains('pulled')) return;
   
-  raycaster.setFromCamera(mouse, camera);
-  const intersects = raycaster.intersectObjects(petals);
-  
-  if (intersects.length > 0) {
-    const petal = intersects[0].object as THREE.Mesh;
-    if (!petal.userData.pulled) {
-      pullPetal(petal);
-    }
-  }
-}
-
-function pullPetal(petal: THREE.Mesh) {
-  if (petal.userData.pulled) return;
-  
-  petal.userData.pulled = true;
-  
-  // Animate petal falling
-  const fallAnimation = () => {
-    petal.position.y -= 0.3;
-    petal.rotation.x += 0.1;
-    petal.rotation.z += 0.05;
-    
-    if (petal.position.y > -5) {
-      requestAnimationFrame(fallAnimation);
-    } else {
-      petal.visible = false;
-    }
-  };
-  fallAnimation();
+  petal.classList.add('pulled');
   
   // Update game state
   lovesMe = !lovesMe;
   currentPetal++;
   
   // Update flower face
-  flower.userData.updateFace(lovesMe);
+  updateFlowerFace(lovesMe);
   
   // Update status text
   if (currentPetal === totalPetals) {
@@ -436,36 +374,14 @@ function resetGame() {
   currentPetal = 0;
   lovesMe = true;
   
-  // Remove old petals
-  petals.forEach(petal => {
-    flower.remove(petal);
-  });
-  petals = [];
-  
-  // Create new petals
-  const petalGeometry = new THREE.SphereGeometry(0.8, 8, 8);
-  const petalMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-  
+  // Random number of petals
   totalPetals = 6 + Math.floor(Math.random() * 5); // Random 6-10 petals
   
-  for (let i = 0; i < totalPetals; i++) {
-    const angle = (i / totalPetals) * Math.PI * 2;
-    const petal = new THREE.Mesh(petalGeometry, petalMaterial);
-    petal.position.set(
-      Math.cos(angle) * 2.2,
-      5.5,
-      Math.sin(angle) * 2.2
-    );
-    petal.scale.set(1.2, 1, 0.6);
-    petal.lookAt(new THREE.Vector3(0, 5.5, 0));
-    petal.castShadow = true;
-    petal.userData = { index: i, pulled: false };
-    petals.push(petal);
-    flower.add(petal);
-  }
+  // Create new petals
+  createPetals();
   
   // Reset face
-  flower.userData.updateFace(true);
+  updateFlowerFace(true);
   
   // Reset text
   statusText.textContent = 'Click on a petal to start!';
@@ -473,7 +389,6 @@ function resetGame() {
 }
 
 // Event listeners
-window.addEventListener('click', onMouseClick);
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -490,9 +405,6 @@ function animate() {
   // Animate Yoshi idle
   yoshi.rotation.y = Math.sin(Date.now() * 0.001) * 0.1;
   yoshi.position.y = 8 + Math.sin(Date.now() * 0.002) * 0.1;
-  
-  // Animate flower gentle sway
-  flower.rotation.z = Math.sin(Date.now() * 0.0015) * 0.05;
   
   controls.update();
   renderer.render(scene, camera);
