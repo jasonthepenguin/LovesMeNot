@@ -70,35 +70,14 @@ scene.add(sunLight);
 
 // Sunset sky
 function createSky() {
-  const skyGeometry = new THREE.SphereGeometry(100, 32, 32);
-  const skyMaterial = new THREE.ShaderMaterial({
-    uniforms: {
-      topColor: { value: new THREE.Color(0xff9966) },
-      bottomColor: { value: new THREE.Color(0xffcc99) },
-      offset: { value: 33 },
-      exponent: { value: 0.6 }
-    },
-    vertexShader: `
-      varying vec3 vWorldPosition;
-      void main() {
-        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-        vWorldPosition = worldPosition.xyz;
-        gl_Position = projectionMatrix * viewMatrix * worldPosition;
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 topColor;
-      uniform vec3 bottomColor;
-      uniform float offset;
-      uniform float exponent;
-      varying vec3 vWorldPosition;
-      void main() {
-        float h = normalize(vWorldPosition + offset).y;
-        gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
-      }
-    `,
-    side: THREE.BackSide
-  });
+  const skyGeometry = new THREE.SphereGeometry(200, 32, 32);
+  const textureLoader = new THREE.TextureLoader();
+  const skyTexture = textureLoader.load('/sunset.png');
+  // @ts-ignore
+  if ('SRGBColorSpace' in THREE) skyTexture.colorSpace = THREE.SRGBColorSpace;
+  skyTexture.wrapS = THREE.ClampToEdgeWrapping;
+  skyTexture.wrapT = THREE.ClampToEdgeWrapping;
+  const skyMaterial = new THREE.MeshBasicMaterial({ map: skyTexture, side: THREE.BackSide, depthWrite: false });
   const sky = new THREE.Mesh(skyGeometry, skyMaterial);
   scene.add(sky);
 }
