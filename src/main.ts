@@ -27,8 +27,14 @@ controls.minDistance = 10;
 controls.maxDistance = 30;
 
 // Camera position
-camera.position.set(15, 12, 15);
-camera.lookAt(0, 5, 0);
+camera.position.set(20.92, 23.86, -11.35);
+// Set the look direction based on the look vector
+const lookTarget = new THREE.Vector3(
+  camera.position.x - 0.709,
+  camera.position.y - 0.402,
+  camera.position.z + 0.579
+);
+camera.lookAt(lookTarget);
 
 // Lighting
 const ambientLight = new THREE.AmbientLight(0xffa500, 0.4);
@@ -349,6 +355,12 @@ function createUI() {
   statusText.textContent = 'Click on a petal to start!';
   document.body.appendChild(statusText);
   
+  // Camera info display
+  const cameraInfo = document.createElement('div');
+  cameraInfo.className = 'camera-info';
+  cameraInfo.id = 'camera-info';
+  document.body.appendChild(cameraInfo);
+  
   // Create 2D flower
   create2DFlower();
   
@@ -427,6 +439,28 @@ window.addEventListener('resize', () => {
 // Initialize UI
 createUI();
 
+// Update camera info display
+function updateCameraInfo() {
+  const cameraInfo = document.getElementById('camera-info');
+  if (cameraInfo) {
+    // Get look vector (direction camera is facing)
+    const lookVector = new THREE.Vector3(0, 0, -1);
+    lookVector.applyQuaternion(camera.quaternion);
+    
+    cameraInfo.innerHTML = `
+      <strong>Camera Position:</strong><br>
+      X: ${camera.position.x.toFixed(2)}<br>
+      Y: ${camera.position.y.toFixed(2)}<br>
+      Z: ${camera.position.z.toFixed(2)}<br>
+      <br>
+      <strong>Look Vector:</strong><br>
+      X: ${lookVector.x.toFixed(3)}<br>
+      Y: ${lookVector.y.toFixed(3)}<br>
+      Z: ${lookVector.z.toFixed(3)}
+    `;
+  }
+}
+
 // Animation loop
 function animate() {
   requestAnimationFrame(animate);
@@ -434,6 +468,9 @@ function animate() {
   // Animate Yoshi idle
   yoshi.rotation.y = Math.sin(Date.now() * 0.001) * 0.1;
   yoshi.position.y = 8 + Math.sin(Date.now() * 0.002) * 0.1;
+  
+  // Update camera info
+  updateCameraInfo();
   
   controls.update();
   renderer.render(scene, camera);
