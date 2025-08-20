@@ -9,6 +9,16 @@ let lovesMe = true;
 let statusText: HTMLDivElement;
 let flowerContainer: HTMLDivElement;
 
+// Scene object refs for animation
+let yoshiHeadGroup: THREE.Group;
+let yoshiTail: THREE.Mesh;
+let yoshiLeftEye: THREE.Mesh;
+let yoshiRightEye: THREE.Mesh;
+let waterSurface: THREE.Mesh;
+let deepWaterSurface: THREE.Mesh;
+let cloudGroups: THREE.Group[] = [];
+let hillsMeta: Array<{ x: number; z: number; rx: number; rz: number }> = [];
+
 // Scene setup
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -16,6 +26,12 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// Tone mapping and color for a nicer look
+// @ts-ignore - available in current three versions
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+// @ts-ignore
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
 document.body.appendChild(renderer.domElement);
 
 // Controls
@@ -35,6 +51,9 @@ const lookTarget = new THREE.Vector3(
   camera.position.z + 0.579
 );
 camera.lookAt(lookTarget);
+
+// Gentle atmospheric fog
+scene.fog = new THREE.Fog(0xffccaa, 80, 220);
 
 // Lighting
 const ambientLight = new THREE.AmbientLight(0xffa500, 0.4);
@@ -90,7 +109,7 @@ function createCastle() {
   
   // Castle base
   const baseGeometry = new THREE.BoxGeometry(12, 8, 12);
-  const baseMaterial = new THREE.MeshPhongMaterial({ color: 0x8B7355 });
+  const baseMaterial = new THREE.MeshPhongMaterial({ color: 0x9a9a9a, specular: 0x333333, shininess: 10 });
   const base = new THREE.Mesh(baseGeometry, baseMaterial);
   base.position.y = 4;
   base.castShadow = true;
@@ -99,7 +118,7 @@ function createCastle() {
   
   // Turrets
   const turretGeometry = new THREE.CylinderGeometry(2, 2, 10, 8);
-  const turretMaterial = new THREE.MeshPhongMaterial({ color: 0x9B8573 });
+  const turretMaterial = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, specular: 0x333333, shininess: 12 });
   
   const positions = [
     [-5, 8, -5], [5, 8, -5], [-5, 8, 5], [5, 8, 5]
@@ -122,7 +141,7 @@ function createCastle() {
   
   // Castle details - bricks pattern
   const brickGeometry = new THREE.BoxGeometry(1.5, 0.5, 0.2);
-  const brickMaterial = new THREE.MeshPhongMaterial({ color: 0x7A6550 });
+  const brickMaterial = new THREE.MeshPhongMaterial({ color: 0x7a7a7a, specular: 0x222222, shininess: 8 });
   
   for (let i = 0; i < 8; i++) {
     const brick = new THREE.Mesh(brickGeometry, brickMaterial);
@@ -133,6 +152,31 @@ function createCastle() {
     brick2.position.set(-4.5 + i * 1.5, 8.5, -6.1);
     group.add(brick2);
   }
+
+  // Simple crenellations along the walls
+  const crenelGeometry = new THREE.BoxGeometry(1, 0.8, 1);
+  const crenelMaterial = new THREE.MeshPhongMaterial({ color: 0x9a9a9a, specular: 0x333333, shininess: 10 });
+
+  for (let x = -5.5; x <= 5.5; x += 2) {
+    const front = new THREE.Mesh(crenelGeometry, crenelMaterial);
+    front.position.set(x, 8.9, 6.2);
+    front.castShadow = true;
+    group.add(front);
+    const back = new THREE.Mesh(crenelGeometry, crenelMaterial);
+    back.position.set(x, 8.9, -6.2);
+    back.castShadow = true;
+    group.add(back);
+  }
+  for (let z = -3.5; z <= 3.5; z += 2) {
+    const left = new THREE.Mesh(crenelGeometry, crenelMaterial);
+    left.position.set(-6.2, 8.9, z);
+    left.castShadow = true;
+    group.add(left);
+    const right = new THREE.Mesh(crenelGeometry, crenelMaterial);
+    right.position.set(6.2, 8.9, z);
+    right.castShadow = true;
+    group.add(right);
+  }
   
   return group;
 }
@@ -141,41 +185,42 @@ function createCastle() {
 function createYoshi() {
   const group = new THREE.Group();
   
-  // Body (sitting position - thinner)
-  const bodyGeometry = new THREE.SphereGeometry(1.8, 16, 16);
-  const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x00aa00 });
+  // Body (sitting position - refined proportions)
+  const bodyGeometry = new THREE.SphereGeometry(1.9, 20, 20);
+  const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x0aa50a, specular: 0x224422, shininess: 20 });
   const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-  body.scale.set(0.9, 1, 0.8);
-  body.position.y = -0.5;
+  body.scale.set(0.95, 1.05, 0.85);
+  body.position.y = -0.45;
   body.castShadow = true;
   group.add(body);
   
   // Belly (lighter green)
-  const bellyGeometry = new THREE.SphereGeometry(1.5, 16, 16);
-  const bellyMaterial = new THREE.MeshPhongMaterial({ color: 0x66ff66 });
+  const bellyGeometry = new THREE.SphereGeometry(1.55, 20, 20);
+  const bellyMaterial = new THREE.MeshPhongMaterial({ color: 0x88ff88, specular: 0x335533, shininess: 25 });
   const belly = new THREE.Mesh(bellyGeometry, bellyMaterial);
-  belly.position.set(0, -0.5, 0.7);
-  belly.scale.set(0.7, 0.7, 0.4);
+  belly.position.set(0, -0.5, 0.68);
+  belly.scale.set(0.72, 0.72, 0.42);
   group.add(belly);
   
   // Head hierarchy
   const headGroup = new THREE.Group();
-  headGroup.position.set(0, 1.8, 0.3);
+  headGroup.position.set(0, 1.95, 0.28);
   group.add(headGroup);
+  yoshiHeadGroup = headGroup;
   
-  const headGeometry = new THREE.SphereGeometry(1.6, 16, 16);
-  const headMaterial = new THREE.MeshPhongMaterial({ color: 0x00cc00 });
+  const headGeometry = new THREE.SphereGeometry(1.65, 20, 20);
+  const headMaterial = new THREE.MeshPhongMaterial({ color: 0x00cc00, specular: 0x224422, shininess: 25 });
   const head = new THREE.Mesh(headGeometry, headMaterial);
-  head.scale.set(1.1, 1, 1.2);
+  head.scale.set(1.08, 1.0, 1.18);
   head.castShadow = true;
   headGroup.add(head);
   
   // Snout (bigger and more pronounced) - relative to head
-  const snoutGeometry = new THREE.SphereGeometry(1, 16, 16);
-  const snoutMaterial = new THREE.MeshPhongMaterial({ color: 0x00dd00 });
+  const snoutGeometry = new THREE.SphereGeometry(0.95, 20, 20);
+  const snoutMaterial = new THREE.MeshPhongMaterial({ color: 0x00dd00, specular: 0x224422, shininess: 20 });
   const snout = new THREE.Mesh(snoutGeometry, snoutMaterial);
-  snout.position.set(0, -0.25, 1.3);
-  snout.scale.set(1.2, 0.9, 1.0);
+  snout.position.set(0, -0.22, 1.26);
+  snout.scale.set(1.18, 0.92, 1.0);
   headGroup.add(snout);
   
   // Nostrils - children of snout for correct anchoring
@@ -193,14 +238,16 @@ function createYoshi() {
   const eyeWhiteMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
   
   const leftEyeWhite = new THREE.Mesh(eyeWhiteGeometry, eyeWhiteMaterial);
-  leftEyeWhite.position.set(-0.8, 0.5, 1.48);
-  leftEyeWhite.scale.set(0.8, 1, 0.7);
+  leftEyeWhite.position.set(-0.76, 0.52, 1.46);
+  leftEyeWhite.scale.set(0.78, 1, 0.68);
   headGroup.add(leftEyeWhite);
+  yoshiLeftEye = leftEyeWhite;
   
   const rightEyeWhite = new THREE.Mesh(eyeWhiteGeometry, eyeWhiteMaterial);
-  rightEyeWhite.position.set(0.8, 0.5, 1.48);
-  rightEyeWhite.scale.set(0.8, 1, 0.7);
+  rightEyeWhite.position.set(0.76, 0.52, 1.46);
+  rightEyeWhite.scale.set(0.78, 1, 0.68);
   headGroup.add(rightEyeWhite);
+  yoshiRightEye = rightEyeWhite;
   
   // Pupils - attach to the eye whites so they stay aligned
   const pupilGeometry = new THREE.SphereGeometry(0.25, 8, 8);
@@ -341,6 +388,7 @@ function createYoshi() {
   tail.position.set(0, -0.5, -2);
   tail.scale.set(1, 0.8, 1.5);
   group.add(tail);
+  yoshiTail = tail;
   
   return group;
 }
@@ -466,6 +514,7 @@ function createWater() {
   water.position.y = 0.5;
   water.receiveShadow = true;
   group.add(water);
+  waterSurface = water;
   
   // Add some depth variation with darker water
   const deepWaterGeometry = new THREE.RingGeometry(24, 33, 64);
@@ -478,6 +527,7 @@ function createWater() {
   deepWater.rotation.x = -Math.PI / 2;
   deepWater.position.y = 0.3;
   group.add(deepWater);
+  deepWaterSurface = deepWater;
   
   return group;
 }
@@ -490,7 +540,7 @@ function createBridge() {
   const deckGeometry = new THREE.BoxGeometry(8, 0.5, 14);
   const deckMaterial = new THREE.MeshPhongMaterial({ color: 0x8B6F47 });
   const deck = new THREE.Mesh(deckGeometry, deckMaterial);
-  deck.position.set(0, 1.5, -28);
+  deck.position.set(0, 1.5, 28);
   deck.castShadow = true;
   deck.receiveShadow = true;
   group.add(deck);
@@ -501,8 +551,8 @@ function createBridge() {
   
   // Four support posts
   const positions = [
-    [-3, 0, -22], [3, 0, -22],
-    [-3, 0, -34], [3, 0, -34]
+    [-3, 0, 22], [3, 0, 22],
+    [-3, 0, 34], [3, 0, 34]
   ];
   
   positions.forEach(pos => {
@@ -517,12 +567,12 @@ function createBridge() {
   const railMaterial = new THREE.MeshPhongMaterial({ color: 0x6B5637 });
   
   const leftRail = new THREE.Mesh(railGeometry, railMaterial);
-  leftRail.position.set(-3.8, 2.5, -28);
+  leftRail.position.set(-3.8, 2.5, 28);
   leftRail.castShadow = true;
   group.add(leftRail);
   
   const rightRail = new THREE.Mesh(railGeometry, railMaterial);
-  rightRail.position.set(3.8, 2.5, -28);
+  rightRail.position.set(3.8, 2.5, 28);
   rightRail.castShadow = true;
   group.add(rightRail);
   
@@ -530,7 +580,7 @@ function createBridge() {
   const archGeometry = new THREE.TorusGeometry(4, 0.3, 8, 16, Math.PI);
   const archMaterial = new THREE.MeshPhongMaterial({ color: 0x8B6F47 });
   const arch = new THREE.Mesh(archGeometry, archMaterial);
-  arch.position.set(0, 5, -28);
+  arch.position.set(0, 5, 28);
   arch.rotation.z = Math.PI;
   arch.castShadow = true;
   group.add(arch);
@@ -541,6 +591,8 @@ function createBridge() {
 // Add some background hills
 function createHills() {
   const group = new THREE.Group();
+  // Reset hill footprints before populating
+  hillsMeta = [];
   
   const hillGeometry = new THREE.SphereGeometry(25, 16, 16);
   const hillMaterial = new THREE.MeshPhongMaterial({ color: 0x669966 });
@@ -550,26 +602,31 @@ function createHills() {
   hill1.position.set(-50, -10, -60);
   hill1.scale.set(2.5, 1.2, 2.5);
   group.add(hill1);
+  hillsMeta.push({ x: hill1.position.x, z: hill1.position.z, rx: 25 * hill1.scale.x, rz: 25 * hill1.scale.z });
   
   const hill2 = new THREE.Mesh(hillGeometry, hillMaterial);
   hill2.position.set(45, -12, -65);
   hill2.scale.set(2, 1, 2);
   group.add(hill2);
+  hillsMeta.push({ x: hill2.position.x, z: hill2.position.z, rx: 25 * hill2.scale.x, rz: 25 * hill2.scale.z });
   
   const hill3 = new THREE.Mesh(hillGeometry, hillMaterial);
   hill3.position.set(30, -15, -80);  // Moved to the side to avoid bridge
   hill3.scale.set(3.5, 1.5, 2.5);
   group.add(hill3);
+  hillsMeta.push({ x: hill3.position.x, z: hill3.position.z, rx: 25 * hill3.scale.x, rz: 25 * hill3.scale.z });
   
   const hill4 = new THREE.Mesh(hillGeometry, hillMaterial);
   hill4.position.set(-60, -8, 30);
   hill4.scale.set(2, 1.3, 2);
   group.add(hill4);
+  hillsMeta.push({ x: hill4.position.x, z: hill4.position.z, rx: 25 * hill4.scale.x, rz: 25 * hill4.scale.z });
   
   const hill5 = new THREE.Mesh(hillGeometry, hillMaterial);
   hill5.position.set(55, -10, 40);
   hill5.scale.set(2.2, 1, 2.2);
   group.add(hill5);
+  hillsMeta.push({ x: hill5.position.x, z: hill5.position.z, rx: 25 * hill5.scale.x, rz: 25 * hill5.scale.z });
   
   // Add some distant mountains
   const mountainGeometry = new THREE.ConeGeometry(30, 40, 8);
@@ -589,18 +646,111 @@ function createHills() {
   return group;
 }
 
+// Add trees for environment polish
+function createTrees() {
+  const group = new THREE.Group();
+  const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x6b4f2a });
+  const leafMaterial = new THREE.MeshPhongMaterial({ color: 0x2e8b57 });
+
+  function isInHillFootprint(x: number, z: number): boolean {
+    for (const h of hillsMeta) {
+      const dx = x - h.x;
+      const dz = z - h.z;
+      const nx = dx / (h.rx + 5); // small margin to avoid edges
+      const nz = dz / (h.rz + 5);
+      if (nx * nx + nz * nz <= 1) return true;
+    }
+    return false;
+  }
+
+  function isValid(x: number, z: number): boolean {
+    const r = Math.sqrt(x * x + z * z);
+    if (r < 40) return false; // keep outside moat area
+    if (isInHillFootprint(x, z)) return false;
+    return true;
+  }
+
+  const targetCount = 10;
+  let placed = 0;
+  let attempts = 0;
+  while (placed < targetCount && attempts < 200) {
+    attempts++;
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 45 + Math.random() * 35; // 45..80
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    if (!isValid(x, z)) continue;
+
+    const tree = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 4, 8), trunkMaterial);
+    trunk.position.y = 2;
+    trunk.castShadow = true;
+    trunk.receiveShadow = true;
+    tree.add(trunk);
+
+    const layers = 3 + Math.floor(Math.random() * 2);
+    for (let l = 0; l < layers; l++) {
+      const radiusLayer = 2.3 - l * 0.5;
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(radiusLayer, 2.2, 10), leafMaterial);
+      cone.position.y = 3.2 + l * 1.2;
+      cone.castShadow = true;
+      tree.add(cone);
+    }
+
+    tree.position.set(x, 0, z);
+    group.add(tree);
+    placed++;
+  }
+
+  return group;
+}
+
+// Soft clouds drifting across the sky
+function createClouds() {
+  const group = new THREE.Group();
+  const cloudMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 });
+
+  function makeCloud(x: number, y: number, z: number, scale = 1, speed = 0.2) {
+    const cg = new THREE.Group();
+    const parts = 4 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < parts; i++) {
+      const sphere = new THREE.Mesh(new THREE.SphereGeometry(2 + Math.random() * 1.2, 12, 12), cloudMaterial);
+      sphere.position.set((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 2);
+      sphere.castShadow = false;
+      cg.add(sphere);
+    }
+    cg.position.set(x, y, z);
+    cg.scale.setScalar(scale);
+    // store speed/amplitude for animation
+    cg.userData.speed = speed + Math.random() * 0.15;
+    cg.userData.amp = 2 + Math.random() * 1.5;
+    cloudGroups.push(cg);
+    group.add(cg);
+  }
+
+  makeCloud(-80, 40, -70, 2.4, 0.18);
+  makeCloud(60, 38, -90, 2.0, 0.22);
+  makeCloud(-40, 35, -60, 1.6, 0.2);
+  makeCloud(20, 42, -50, 1.8, 0.16);
+  makeCloud(0, 37, -85, 2.2, 0.19);
+
+  return group;
+}
+
 // Initialize scene
 createSky();
 scene.add(createGround());
 scene.add(createWater());
 scene.add(createBridge());
 scene.add(createHills());
+scene.add(createTrees());
+scene.add(createClouds());
 
 const castle = createCastle();
 castle.position.y = 2; // Raise castle to sit on island
 scene.add(castle);
 
-const yoshiBaseY = 11.8;
+const yoshiBaseY = 12.3;
 const yoshi = createYoshi();
 yoshi.position.set(0, yoshiBaseY, 5); // Moved forward so feet dangle over wall
 scene.add(yoshi);
@@ -726,6 +876,34 @@ function animate() {
   // Animate Yoshi idle
   yoshi.rotation.y = Math.sin(Date.now() * 0.001) * 0.1;
   yoshi.position.y = yoshiBaseY + Math.sin(Date.now() * 0.002) * 0.1;
+  const t = Date.now() * 0.001;
+  if (yoshiHeadGroup) {
+    yoshiHeadGroup.rotation.x = Math.sin(t * 0.9) * 0.03;
+    yoshiHeadGroup.rotation.y = Math.sin(t * 0.5) * 0.03;
+  }
+  if (yoshiTail) {
+    yoshiTail.rotation.y = Math.sin(t * 2.0) * 0.3;
+  }
+  // Occasional blink every ~4s
+  const blinkPhase = t % 4.0;
+  const eyeScaleY = blinkPhase < 0.06 ? 0.15 : (blinkPhase < 0.08 ? 0.4 : (blinkPhase < 0.10 ? 0.15 : 1.0));
+  if (yoshiLeftEye && yoshiRightEye) {
+    yoshiLeftEye.scale.y = eyeScaleY;
+    yoshiRightEye.scale.y = eyeScaleY;
+  }
+
+  // Subtle water motion
+  if (waterSurface && deepWaterSurface) {
+    waterSurface.rotation.z += 0.0005;
+    deepWaterSurface.rotation.z -= 0.0004;
+  }
+
+  // Drift clouds
+  for (const cg of cloudGroups) {
+    cg.position.x += (cg.userData.speed || 0.2) * 0.3;
+    cg.position.y += Math.sin(t * 0.5) * 0.002 * (cg.userData.amp || 2.5);
+    if (cg.position.x > 100) cg.position.x = -100;
+  }
   
   // Update camera info
   updateCameraInfo();
