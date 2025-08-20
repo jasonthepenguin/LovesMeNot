@@ -24,7 +24,7 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.maxPolarAngle = Math.PI / 2;
 controls.minDistance = 10;
-controls.maxDistance = 30;
+controls.maxDistance = 50;
 
 // Camera position
 camera.position.set(20.92, 23.86, -11.35);
@@ -141,89 +141,206 @@ function createCastle() {
 function createYoshi() {
   const group = new THREE.Group();
   
-  // Body
-  const bodyGeometry = new THREE.SphereGeometry(2, 16, 16);
+  // Body (sitting position - thinner)
+  const bodyGeometry = new THREE.SphereGeometry(1.8, 16, 16);
   const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x00aa00 });
   const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-  body.scale.set(1, 1.2, 0.9);
+  body.scale.set(0.9, 1, 0.8);
+  body.position.y = -0.5;
   body.castShadow = true;
   group.add(body);
   
-  // Head
-  const headGeometry = new THREE.SphereGeometry(1.5, 16, 16);
+  // Belly (lighter green)
+  const bellyGeometry = new THREE.SphereGeometry(1.5, 16, 16);
+  const bellyMaterial = new THREE.MeshPhongMaterial({ color: 0x66ff66 });
+  const belly = new THREE.Mesh(bellyGeometry, bellyMaterial);
+  belly.position.set(0, -0.5, 0.7);
+  belly.scale.set(0.7, 0.7, 0.4);
+  group.add(belly);
+  
+  // Head hierarchy
+  const headGroup = new THREE.Group();
+  headGroup.position.set(0, 1.8, 0.3);
+  group.add(headGroup);
+  
+  const headGeometry = new THREE.SphereGeometry(1.6, 16, 16);
   const headMaterial = new THREE.MeshPhongMaterial({ color: 0x00cc00 });
   const head = new THREE.Mesh(headGeometry, headMaterial);
-  head.position.set(0, 2, 0.5);
   head.scale.set(1.1, 1, 1.2);
   head.castShadow = true;
-  group.add(head);
+  headGroup.add(head);
   
-  // Snout
-  const snoutGeometry = new THREE.SphereGeometry(0.8, 16, 16);
+  // Snout (bigger and more pronounced) - relative to head
+  const snoutGeometry = new THREE.SphereGeometry(1, 16, 16);
   const snoutMaterial = new THREE.MeshPhongMaterial({ color: 0x00dd00 });
   const snout = new THREE.Mesh(snoutGeometry, snoutMaterial);
-  snout.position.set(0, 1.8, 1.8);
-  snout.scale.set(1.2, 0.8, 1);
-  group.add(snout);
+  snout.position.set(0, -0.25, 1.3);
+  snout.scale.set(1.2, 0.9, 1.0);
+  headGroup.add(snout);
   
-  // Eyes
-  const eyeGeometry = new THREE.SphereGeometry(0.3, 8, 8);
-  const eyeMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-  const pupilGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+  // Nostrils - children of snout for correct anchoring
+  const nostrilGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+  const nostrilMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });
+  const leftNostril = new THREE.Mesh(nostrilGeometry, nostrilMaterial);
+  leftNostril.position.set(-0.2, 0.05, 0.85);
+  snout.add(leftNostril);
+  const rightNostril = new THREE.Mesh(nostrilGeometry, nostrilMaterial);
+  rightNostril.position.set(0.2, 0.05, 0.85);
+  snout.add(rightNostril);
+  
+  // Eyes (grouped and relative to head)
+  const eyeWhiteGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+  const eyeWhiteMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+  
+  const leftEyeWhite = new THREE.Mesh(eyeWhiteGeometry, eyeWhiteMaterial);
+  leftEyeWhite.position.set(-0.8, 0.5, 1.48);
+  leftEyeWhite.scale.set(0.8, 1, 0.7);
+  headGroup.add(leftEyeWhite);
+  
+  const rightEyeWhite = new THREE.Mesh(eyeWhiteGeometry, eyeWhiteMaterial);
+  rightEyeWhite.position.set(0.8, 0.5, 1.48);
+  rightEyeWhite.scale.set(0.8, 1, 0.7);
+  headGroup.add(rightEyeWhite);
+  
+  // Pupils - attach to the eye whites so they stay aligned
+  const pupilGeometry = new THREE.SphereGeometry(0.25, 8, 8);
   const pupilMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });
-  
-  const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-  leftEye.position.set(-0.5, 2.2, 1.3);
-  group.add(leftEye);
-  
   const leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
-  leftPupil.position.set(-0.5, 2.2, 1.45);
-  group.add(leftPupil);
-  
-  const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-  rightEye.position.set(0.5, 2.2, 1.3);
-  group.add(rightEye);
-  
+  leftPupil.position.set(0, 0, 0.28);
+  leftEyeWhite.add(leftPupil);
   const rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
-  rightPupil.position.set(0.5, 2.2, 1.45);
-  group.add(rightPupil);
+  rightPupil.position.set(0, 0, 0.28);
+  rightEyeWhite.add(rightPupil);
   
-  // Shell
-  const shellGeometry = new THREE.SphereGeometry(1.5, 8, 8);
+  // Eye highlights
+  const highlightGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+  const highlightMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5 });
+  const leftHighlight = new THREE.Mesh(highlightGeometry, highlightMaterial);
+  leftHighlight.position.set(-0.1, 0.1, 0.2);
+  leftPupil.add(leftHighlight);
+  const rightHighlight = new THREE.Mesh(highlightGeometry, highlightMaterial);
+  rightHighlight.position.set(-0.1, 0.1, 0.2);
+  rightPupil.add(rightHighlight);
+  
+  // Shell (saddle-like)
+  const shellGeometry = new THREE.SphereGeometry(1.8, 12, 8);
   const shellMaterial = new THREE.MeshPhongMaterial({ color: 0xff4444 });
   const shell = new THREE.Mesh(shellGeometry, shellMaterial);
-  shell.position.set(0, 0.5, -1);
-  shell.scale.set(1, 1, 0.8);
+  shell.position.set(0, 0.2, -1.2);
+  shell.scale.set(1.2, 1, 1);
   shell.castShadow = true;
   group.add(shell);
   
-  // Arms
-  const armGeometry = new THREE.SphereGeometry(0.5, 8, 8);
+  // Shell rim
+  const rimGeometry = new THREE.TorusGeometry(1.5, 0.15, 8, 16);
+  const rimMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+  const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+  rim.position.set(0, 0.2, -1.2);
+  rim.rotation.x = Math.PI / 2;
+  group.add(rim);
+  
+  // Arms with proper pivots (shoulder -> elbow)
+  const upperArmGeometry = new THREE.CylinderGeometry(0.35, 0.4, 1.2, 8);
   const armMaterial = new THREE.MeshPhongMaterial({ color: 0x00aa00 });
+  const handGeometry = new THREE.SphereGeometry(0.4, 8, 8);
+  const handMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
   
-  const leftArm = new THREE.Mesh(armGeometry, armMaterial);
-  leftArm.position.set(-1.5, 0, 0);
-  leftArm.scale.set(1, 1.5, 0.8);
-  group.add(leftArm);
+  // Left arm
+  const leftShoulder = new THREE.Group();
+  leftShoulder.position.set(-1.6, 0.6, 0.2);
+  group.add(leftShoulder);
+  const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
+  leftUpperArm.position.y = -0.6; // anchor at shoulder
+  leftUpperArm.rotation.z = Math.PI / 8;
+  leftUpperArm.castShadow = true;
+  leftShoulder.add(leftUpperArm);
+  const leftElbow = new THREE.Group();
+  leftElbow.position.y = -1.2;
+  leftElbow.rotation.x = -Math.PI / 8;
+  leftShoulder.add(leftElbow);
+  const leftLowerArm = new THREE.Mesh(upperArmGeometry, armMaterial);
+  leftLowerArm.scale.set(0.8, 1, 0.8);
+  leftLowerArm.position.y = -0.6; // anchor at elbow
+  leftElbow.add(leftLowerArm);
+  const leftHand = new THREE.Mesh(handGeometry, handMaterial);
+  leftHand.position.set(0, -1.2, 0.2);
+  leftElbow.add(leftHand);
   
-  const rightArm = new THREE.Mesh(armGeometry, armMaterial);
-  rightArm.position.set(1.5, 0, 0);
-  rightArm.scale.set(1, 1.5, 0.8);
-  group.add(rightArm);
+  // Right arm
+  const rightShoulder = new THREE.Group();
+  rightShoulder.position.set(1.6, 0.6, 0.2);
+  group.add(rightShoulder);
+  const rightUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
+  rightUpperArm.position.y = -0.6;
+  rightUpperArm.rotation.z = -Math.PI / 8;
+  rightUpperArm.castShadow = true;
+  rightShoulder.add(rightUpperArm);
+  const rightElbow = new THREE.Group();
+  rightElbow.position.y = -1.2;
+  rightElbow.rotation.x = -Math.PI / 8;
+  rightShoulder.add(rightElbow);
+  const rightLowerArm = new THREE.Mesh(upperArmGeometry, armMaterial);
+  rightLowerArm.scale.set(0.8, 1, 0.8);
+  rightLowerArm.position.y = -0.6;
+  rightElbow.add(rightLowerArm);
+  const rightHand = new THREE.Mesh(handGeometry, handMaterial);
+  rightHand.position.set(0, -1.2, 0.2);
+  rightElbow.add(rightHand);
   
-  // Feet
-  const footGeometry = new THREE.SphereGeometry(0.6, 8, 8);
+  // Legs (sitting position - bent)
+  const thighGeometry = new THREE.CylinderGeometry(0.5, 0.6, 1.5, 8);
+  const legMaterial = new THREE.MeshPhongMaterial({ color: 0x00aa00 });
+  
+  // Left leg (thigh)
+  const leftThigh = new THREE.Mesh(thighGeometry, legMaterial);
+  leftThigh.position.set(-1, -1.2, 1.2);
+  leftThigh.rotation.x = Math.PI / 3;
+  leftThigh.castShadow = true;
+  group.add(leftThigh);
+  
+  // Left shin
+  const shinGeometry = new THREE.CylinderGeometry(0.4, 0.5, 1.3, 8);
+  const leftShin = new THREE.Mesh(shinGeometry, legMaterial);
+  leftShin.position.set(-1, -1.8, 2.0);
+  leftShin.rotation.x = Math.PI / 6;
+  group.add(leftShin);
+  
+  // Right leg (thigh)
+  const rightThigh = new THREE.Mesh(thighGeometry, legMaterial);
+  rightThigh.position.set(1, -1.2, 1.2);
+  rightThigh.rotation.x = Math.PI / 3;
+  rightThigh.castShadow = true;
+  group.add(rightThigh);
+  
+  // Right shin
+  const rightShin = new THREE.Mesh(shinGeometry, legMaterial);
+  rightShin.position.set(1, -1.8, 2.0);
+  rightShin.rotation.x = Math.PI / 6;
+  group.add(rightShin);
+  
+  // Feet/Shoes (bigger and more detailed)
+  const footGeometry = new THREE.SphereGeometry(0.7, 8, 8);
   const footMaterial = new THREE.MeshPhongMaterial({ color: 0xff8800 });
   
   const leftFoot = new THREE.Mesh(footGeometry, footMaterial);
-  leftFoot.position.set(-0.8, -1.8, 0.3);
-  leftFoot.scale.set(1, 0.8, 1.2);
+  leftFoot.position.set(-1, -2.2, 3);
+  leftFoot.scale.set(1.2, 0.8, 1.5);
+  leftFoot.castShadow = true;
   group.add(leftFoot);
   
   const rightFoot = new THREE.Mesh(footGeometry, footMaterial);
-  rightFoot.position.set(0.8, -1.8, 0.3);
-  rightFoot.scale.set(1, 0.8, 1.2);
+  rightFoot.position.set(1, -2.2, 3);
+  rightFoot.scale.set(1.2, 0.8, 1.5);
+  rightFoot.castShadow = true;
   group.add(rightFoot);
+  
+  // Tail
+  const tailGeometry = new THREE.SphereGeometry(0.5, 8, 8);
+  const tailMaterial = new THREE.MeshPhongMaterial({ color: 0x00aa00 });
+  const tail = new THREE.Mesh(tailGeometry, tailMaterial);
+  tail.position.set(0, -0.5, -2);
+  tail.scale.set(1, 0.8, 1.5);
+  group.add(tail);
   
   return group;
 }
@@ -302,35 +419,172 @@ function updateFlowerFace(happy: boolean) {
 
 // Create ground
 function createGround() {
-  const groundGeometry = new THREE.PlaneGeometry(100, 100);
+  const group = new THREE.Group();
+  
+  // Main ground (larger)
+  const groundGeometry = new THREE.PlaneGeometry(200, 200);
   const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x77aa77 });
   const ground = new THREE.Mesh(groundGeometry, groundMaterial);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
-  return ground;
+  group.add(ground);
+  
+  // Castle island (raised platform)
+  const islandGeometry = new THREE.CylinderGeometry(18, 20, 2, 32);
+  const islandMaterial = new THREE.MeshPhongMaterial({ color: 0x8B7355 });
+  const island = new THREE.Mesh(islandGeometry, islandMaterial);
+  island.position.y = 1;
+  island.receiveShadow = true;
+  island.castShadow = true;
+  group.add(island);
+  
+  // Grass on island
+  const grassGeometry = new THREE.CylinderGeometry(18, 18, 0.2, 32);
+  const grassMaterial = new THREE.MeshPhongMaterial({ color: 0x55aa55 });
+  const grass = new THREE.Mesh(grassGeometry, grassMaterial);
+  grass.position.y = 2.1;
+  grass.receiveShadow = true;
+  group.add(grass);
+  
+  return group;
+}
+
+// Create water moat
+function createWater() {
+  const group = new THREE.Group();
+  
+  // Water surface
+  const waterGeometry = new THREE.RingGeometry(22, 35, 64);
+  const waterMaterial = new THREE.MeshPhongMaterial({ 
+    color: 0x006994,
+    transparent: true,
+    opacity: 0.8,
+    shininess: 100
+  });
+  const water = new THREE.Mesh(waterGeometry, waterMaterial);
+  water.rotation.x = -Math.PI / 2;
+  water.position.y = 0.5;
+  water.receiveShadow = true;
+  group.add(water);
+  
+  // Add some depth variation with darker water
+  const deepWaterGeometry = new THREE.RingGeometry(24, 33, 64);
+  const deepWaterMaterial = new THREE.MeshPhongMaterial({ 
+    color: 0x004466,
+    transparent: true,
+    opacity: 0.6
+  });
+  const deepWater = new THREE.Mesh(deepWaterGeometry, deepWaterMaterial);
+  deepWater.rotation.x = -Math.PI / 2;
+  deepWater.position.y = 0.3;
+  group.add(deepWater);
+  
+  return group;
+}
+
+// Create bridge
+function createBridge() {
+  const group = new THREE.Group();
+  
+  // Bridge deck
+  const deckGeometry = new THREE.BoxGeometry(8, 0.5, 14);
+  const deckMaterial = new THREE.MeshPhongMaterial({ color: 0x8B6F47 });
+  const deck = new THREE.Mesh(deckGeometry, deckMaterial);
+  deck.position.set(0, 1.5, -28);
+  deck.castShadow = true;
+  deck.receiveShadow = true;
+  group.add(deck);
+  
+  // Bridge supports
+  const supportGeometry = new THREE.BoxGeometry(0.8, 3, 0.8);
+  const supportMaterial = new THREE.MeshPhongMaterial({ color: 0x6B5637 });
+  
+  // Four support posts
+  const positions = [
+    [-3, 0, -22], [3, 0, -22],
+    [-3, 0, -34], [3, 0, -34]
+  ];
+  
+  positions.forEach(pos => {
+    const support = new THREE.Mesh(supportGeometry, supportMaterial);
+    support.position.set(pos[0], pos[1], pos[2]);
+    support.castShadow = true;
+    group.add(support);
+  });
+  
+  // Railings
+  const railGeometry = new THREE.BoxGeometry(0.3, 1.5, 14);
+  const railMaterial = new THREE.MeshPhongMaterial({ color: 0x6B5637 });
+  
+  const leftRail = new THREE.Mesh(railGeometry, railMaterial);
+  leftRail.position.set(-3.8, 2.5, -28);
+  leftRail.castShadow = true;
+  group.add(leftRail);
+  
+  const rightRail = new THREE.Mesh(railGeometry, railMaterial);
+  rightRail.position.set(3.8, 2.5, -28);
+  rightRail.castShadow = true;
+  group.add(rightRail);
+  
+  // Decorative arches
+  const archGeometry = new THREE.TorusGeometry(4, 0.3, 8, 16, Math.PI);
+  const archMaterial = new THREE.MeshPhongMaterial({ color: 0x8B6F47 });
+  const arch = new THREE.Mesh(archGeometry, archMaterial);
+  arch.position.set(0, 5, -28);
+  arch.rotation.z = Math.PI;
+  arch.castShadow = true;
+  group.add(arch);
+  
+  return group;
 }
 
 // Add some background hills
 function createHills() {
   const group = new THREE.Group();
   
-  const hillGeometry = new THREE.SphereGeometry(15, 16, 16);
+  const hillGeometry = new THREE.SphereGeometry(25, 16, 16);
   const hillMaterial = new THREE.MeshPhongMaterial({ color: 0x669966 });
   
+  // More and larger hills (repositioned to avoid bridge)
   const hill1 = new THREE.Mesh(hillGeometry, hillMaterial);
-  hill1.position.set(-30, -5, -30);
-  hill1.scale.set(2, 1, 2);
+  hill1.position.set(-50, -10, -60);
+  hill1.scale.set(2.5, 1.2, 2.5);
   group.add(hill1);
   
   const hill2 = new THREE.Mesh(hillGeometry, hillMaterial);
-  hill2.position.set(25, -8, -35);
-  hill2.scale.set(1.5, 0.8, 1.5);
+  hill2.position.set(45, -12, -65);
+  hill2.scale.set(2, 1, 2);
   group.add(hill2);
   
   const hill3 = new THREE.Mesh(hillGeometry, hillMaterial);
-  hill3.position.set(0, -10, -40);
-  hill3.scale.set(3, 1.2, 2);
+  hill3.position.set(30, -15, -80);  // Moved to the side to avoid bridge
+  hill3.scale.set(3.5, 1.5, 2.5);
   group.add(hill3);
+  
+  const hill4 = new THREE.Mesh(hillGeometry, hillMaterial);
+  hill4.position.set(-60, -8, 30);
+  hill4.scale.set(2, 1.3, 2);
+  group.add(hill4);
+  
+  const hill5 = new THREE.Mesh(hillGeometry, hillMaterial);
+  hill5.position.set(55, -10, 40);
+  hill5.scale.set(2.2, 1, 2.2);
+  group.add(hill5);
+  
+  // Add some distant mountains
+  const mountainGeometry = new THREE.ConeGeometry(30, 40, 8);
+  const mountainMaterial = new THREE.MeshPhongMaterial({ color: 0x556b55 });
+  
+  const mountain1 = new THREE.Mesh(mountainGeometry, mountainMaterial);
+  mountain1.position.set(-80, 10, -90);
+  mountain1.rotation.y = Math.random() * Math.PI;
+  group.add(mountain1);
+  
+  const mountain2 = new THREE.Mesh(mountainGeometry, mountainMaterial);
+  mountain2.position.set(75, 8, -85);
+  mountain2.scale.set(0.8, 1.2, 0.8);
+  mountain2.rotation.y = Math.random() * Math.PI;
+  group.add(mountain2);
   
   return group;
 }
@@ -338,13 +592,17 @@ function createHills() {
 // Initialize scene
 createSky();
 scene.add(createGround());
+scene.add(createWater());
+scene.add(createBridge());
 scene.add(createHills());
 
 const castle = createCastle();
+castle.position.y = 2; // Raise castle to sit on island
 scene.add(castle);
 
+const yoshiBaseY = 11.8;
 const yoshi = createYoshi();
-yoshi.position.set(0, 8, 3);
+yoshi.position.set(0, yoshiBaseY, 5); // Moved forward so feet dangle over wall
 scene.add(yoshi);
 
 // UI Elements
@@ -467,7 +725,7 @@ function animate() {
   
   // Animate Yoshi idle
   yoshi.rotation.y = Math.sin(Date.now() * 0.001) * 0.1;
-  yoshi.position.y = 8 + Math.sin(Date.now() * 0.002) * 0.1;
+  yoshi.position.y = yoshiBaseY + Math.sin(Date.now() * 0.002) * 0.1;
   
   // Update camera info
   updateCameraInfo();
