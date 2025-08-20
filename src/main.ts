@@ -426,7 +426,8 @@ function rebuildHeldFlower(petalCount: number) {
 
   const root = new THREE.Group();
   // Position relative to right elbow so it sits in the hand
-  root.position.set(-0.1, -1.05, 0.75);
+  // Nudge slightly forward to keep flower head clear of body
+  root.position.set(-0.1, -1.05, 0.9);
   root.rotation.set(-0.2, -0.35, 0.15);
 
   const stemMaterial = new THREE.MeshPhongMaterial({ color: 0x2d6e2d, shininess: 20, specular: 0x335533 });
