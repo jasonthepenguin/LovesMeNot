@@ -18,6 +18,8 @@ let waterSurface: THREE.Mesh;
 let deepWaterSurface: THREE.Mesh;
 let cloudGroups: THREE.Group[] = [];
 let hillsMeta: Array<{ x: number; z: number; rx: number; rz: number }> = [];
+let yoshiLeftElbow: THREE.Group;
+let yoshiRightElbow: THREE.Group;
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -275,43 +277,52 @@ function createYoshi() {
   const leftShoulder = new THREE.Group();
   leftShoulder.position.set(-1.6, 0.6, 0.2);
   group.add(leftShoulder);
+  leftShoulder.rotation.y = Math.PI / 12; // slight inward
   const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
   leftUpperArm.position.y = -0.6; // anchor at shoulder
   leftUpperArm.rotation.z = Math.PI / 8;
+  leftUpperArm.rotation.x = -Math.PI / 6; // bring slightly forward
   leftUpperArm.castShadow = true;
   leftShoulder.add(leftUpperArm);
   const leftElbow = new THREE.Group();
-  leftElbow.position.y = -1.2;
-  leftElbow.rotation.x = -Math.PI / 8;
+  leftElbow.position.set(0.6, -0.9, 1.2); // move forward and slightly inward
+  leftElbow.rotation.x = -Math.PI / 10;
   leftShoulder.add(leftElbow);
+  yoshiLeftElbow = leftElbow;
   const leftLowerArm = new THREE.Mesh(upperArmGeometry, armMaterial);
   leftLowerArm.scale.set(0.8, 1, 0.8);
   leftLowerArm.position.y = -0.6; // anchor at elbow
   leftElbow.add(leftLowerArm);
   const leftHand = new THREE.Mesh(handGeometry, handMaterial);
-  leftHand.position.set(0, -1.2, 0.2);
+  leftHand.position.set(0.1, -1.0, 0.65);
   leftElbow.add(leftHand);
+  // store base for animation
+  leftElbow.userData.base = leftElbow.position.clone();
   
   // Right arm
   const rightShoulder = new THREE.Group();
   rightShoulder.position.set(1.6, 0.6, 0.2);
   group.add(rightShoulder);
+  rightShoulder.rotation.y = -Math.PI / 12; // slight inward
   const rightUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
   rightUpperArm.position.y = -0.6;
   rightUpperArm.rotation.z = -Math.PI / 8;
+  rightUpperArm.rotation.x = -Math.PI / 6; // bring slightly forward
   rightUpperArm.castShadow = true;
   rightShoulder.add(rightUpperArm);
   const rightElbow = new THREE.Group();
-  rightElbow.position.y = -1.2;
-  rightElbow.rotation.x = -Math.PI / 8;
+  rightElbow.position.set(-0.6, -0.9, 1.2); // move forward and slightly inward
+  rightElbow.rotation.x = -Math.PI / 10;
   rightShoulder.add(rightElbow);
+  yoshiRightElbow = rightElbow;
   const rightLowerArm = new THREE.Mesh(upperArmGeometry, armMaterial);
   rightLowerArm.scale.set(0.8, 1, 0.8);
   rightLowerArm.position.y = -0.6;
   rightElbow.add(rightLowerArm);
   const rightHand = new THREE.Mesh(handGeometry, handMaterial);
-  rightHand.position.set(0, -1.2, 0.2);
+  rightHand.position.set(-0.1, -1.0, 0.65);
   rightElbow.add(rightHand);
+  rightElbow.userData.base = rightElbow.position.clone();
   
   // Legs (sitting position - bent)
   const thighGeometry = new THREE.CylinderGeometry(0.5, 0.6, 1.5, 8);
@@ -862,6 +873,15 @@ function animate() {
   }
   if (yoshiTail) {
     yoshiTail.rotation.y = Math.sin(t * 2.0) * 0.3;
+  }
+  // Hands fiddling: small alternating motions near the center
+  if (yoshiLeftElbow && yoshiRightElbow) {
+    const lbase: THREE.Vector3 = yoshiLeftElbow.userData.base;
+    const rbase: THREE.Vector3 = yoshiRightElbow.userData.base;
+    const amp = 0.05;
+    const phase = Math.sin(t * 3.0) * amp;
+    yoshiLeftElbow.position.set(lbase.x + phase, lbase.y + Math.sin(t * 4.0) * amp, lbase.z + Math.cos(t * 2.5) * amp);
+    yoshiRightElbow.position.set(rbase.x - phase, rbase.y + Math.cos(t * 4.0) * amp, rbase.z + Math.sin(t * 2.8) * amp);
   }
   // Occasional blink every ~4s
   const blinkPhase = t % 4.0;
