@@ -227,13 +227,23 @@ function create2DFlower() {
   flowerContainer = document.createElement('div');
   flowerContainer.className = 'flower-container';
   flowerContainer.innerHTML = `
+    <div class="flower-stem"></div>
     <div class="flower">
       <div class="flower-center" id="flower-face">
+        <div class="flower-shine"></div>
         <div class="flower-eyes">
-          <div class="eye"></div>
-          <div class="eye"></div>
+          <div class="eye">
+            <div class="eye-sparkle"></div>
+          </div>
+          <div class="eye">
+            <div class="eye-sparkle"></div>
+          </div>
         </div>
         <div class="flower-mouth happy"></div>
+        <div class="flower-cheeks">
+          <div class="cheek"></div>
+          <div class="cheek"></div>
+        </div>
       </div>
       <div class="petals" id="petals-container"></div>
     </div>
@@ -254,11 +264,19 @@ function createPetals() {
     petal.className = 'petal';
     petal.dataset.index = i.toString();
     
+    // Add inner petal detail
+    const petalInner = document.createElement('div');
+    petalInner.className = 'petal-inner';
+    petal.appendChild(petalInner);
+    
     // Position petals in a circle
-    const x = Math.cos(angle) * 60;
-    const y = Math.sin(angle) * 60;
+    const x = Math.cos(angle) * 65;
+    const y = Math.sin(angle) * 65;
     const rotationDeg = (angle * 180 / Math.PI) + 90;
     petal.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) rotate(${rotationDeg}deg)`;
+    
+    // Stagger animation
+    petal.style.animationDelay = `${i * 0.05}s`;
     
     petal.addEventListener('click', () => pullPetal(petal));
     petalsContainer.appendChild(petal);
@@ -331,21 +349,25 @@ function createUI() {
   statusText.textContent = 'Click on a petal to start!';
   document.body.appendChild(statusText);
   
-  // Instructions
-  const instructions = document.createElement('div');
-  instructions.className = 'instructions';
-  instructions.innerHTML = `
-    <h2>Loves Me Not</h2>
-    <p>Click on the petals below to pull them off!</p>
-    <button id="reset-btn">New Flower</button>
-  `;
-  document.body.appendChild(instructions);
-  
-  // Reset button
-  document.getElementById('reset-btn')?.addEventListener('click', resetGame);
-  
   // Create 2D flower
   create2DFlower();
+  
+  // Create new round button (hidden initially)
+  const newRoundBtn = document.createElement('button');
+  newRoundBtn.id = 'new-round-btn';
+  newRoundBtn.textContent = 'New Flower 🌸';
+  newRoundBtn.style.display = 'none';
+  newRoundBtn.addEventListener('click', () => {
+    newRoundBtn.style.display = 'none';
+    flowerContainer.style.display = 'block';
+    flowerContainer.classList.remove('fade-out');
+    flowerContainer.classList.add('fade-in');
+    resetGame();
+    setTimeout(() => {
+      flowerContainer.classList.remove('fade-in');
+    }, 500);
+  });
+  document.body.appendChild(newRoundBtn);
 }
 
 function pullPetal(petal: HTMLElement) {
@@ -364,6 +386,13 @@ function pullPetal(petal: HTMLElement) {
   if (currentPetal === totalPetals) {
     statusText.textContent = lovesMe ? '💖 LOVES ME! 💖' : '💔 Loves me not... 💔';
     statusText.classList.add(lovesMe ? 'loves-me' : 'loves-me-not');
+    
+    // Hide flower and show new round button after delay
+    setTimeout(() => {
+      flowerContainer.style.display = 'none';
+      const newRoundBtn = document.getElementById('new-round-btn')!;
+      newRoundBtn.style.display = 'block';
+    }, 3000);
   } else {
     statusText.textContent = lovesMe ? 'Loves me!' : 'Loves me not...';
   }

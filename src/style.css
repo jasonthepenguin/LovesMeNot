@@ -48,62 +48,90 @@ canvas {
   100% { transform: translateX(-50%) scale(1); }
 }
 
-.instructions {
+#new-round-btn {
   position: absolute;
-  bottom: 30px;
-  left: 30px;
-  background: rgba(255,255,255,0.9);
-  padding: 20px;
-  border-radius: 15px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  max-width: 300px;
-}
-
-.instructions h2 {
-  color: #ff69b4;
-  margin-bottom: 10px;
-  font-size: 24px;
-}
-
-.instructions p {
-  color: #333;
-  margin-bottom: 15px;
-  font-size: 14px;
-}
-
-#reset-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 25px;
-  font-size: 16px;
+  padding: 15px 30px;
+  border-radius: 30px;
+  font-size: 20px;
+  font-weight: bold;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: all 0.3s ease;
+  z-index: 200;
+  box-shadow: 0 4px 15px rgba(255,105,180,0.4);
+  animation: bounceIn 0.5s ease-out;
 }
 
-#reset-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 10px rgba(102,126,234,0.4);
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.3);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
 }
 
-#reset-btn:active {
-  transform: scale(0.95);
+#new-round-btn:hover {
+  transform: translateX(-50%) scale(1.1);
+  box-shadow: 0 6px 20px rgba(255,105,180,0.6);
+  background: linear-gradient(135deg, #ff1493 0%, #ff69b4 100%);
+}
+
+#new-round-btn:active {
+  transform: translateX(-50%) scale(0.95);
 }
 
 /* 2D Flower UI */
 .flower-container {
   position: absolute;
-  bottom: 20px;
+  bottom: 30px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
 }
 
+.flower-container.fade-in {
+  animation: fadeIn 0.5s ease forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.8) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1) translateY(0);
+  }
+}
+
+.flower-stem {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 60px;
+  background: linear-gradient(to bottom, #4a9e4a 0%, #2d6e2d 100%);
+  border-radius: 4px;
+  z-index: 0;
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
 .flower {
   position: relative;
-  width: 200px;
-  height: 200px;
+  width: 220px;
+  height: 220px;
 }
 
 .flower-center {
@@ -111,50 +139,94 @@ canvas {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 80px;
-  height: 80px;
-  background: #ffaa00;
+  width: 90px;
+  height: 90px;
+  background: radial-gradient(circle at 30% 30%, #ffcc33, #ff9900);
   border-radius: 50%;
-  border: 3px solid #ff8800;
+  border: 4px solid #ff8800;
   z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  box-shadow: 
+    inset -3px -3px 6px rgba(0,0,0,0.2),
+    0 4px 8px rgba(0,0,0,0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.flower-shine {
+  position: absolute;
+  top: 10px;
+  left: 15px;
+  width: 25px;
+  height: 25px;
+  background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 70%);
+  border-radius: 50%;
 }
 
 .flower-eyes {
   display: flex;
-  gap: 20px;
+  gap: 24px;
   margin-bottom: 5px;
+  z-index: 2;
 }
 
 .eye {
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   background: #000;
+  border-radius: 50%;
+  position: relative;
+}
+
+.eye-sparkle {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 4px;
+  height: 4px;
+  background: white;
   border-radius: 50%;
 }
 
 .flower-mouth {
-  width: 30px;
-  height: 15px;
-  border: 3px solid #000;
-  border-radius: 0 0 30px 30px;
+  width: 35px;
+  height: 18px;
+  border: 4px solid #000;
+  border-radius: 0 0 35px 35px;
   border-top: none;
   transition: all 0.3s ease;
+  z-index: 2;
 }
 
 .flower-mouth.happy {
-  border-radius: 0 0 30px 30px;
+  border-radius: 0 0 35px 35px;
   border-top: none;
 }
 
 .flower-mouth.sad {
-  border-radius: 30px 30px 0 0;
+  border-radius: 35px 35px 0 0;
   border-bottom: none;
-  border-top: 3px solid #000;
+  border-top: 4px solid #000;
   margin-top: 10px;
+}
+
+.flower-cheeks {
+  position: absolute;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 10px;
+  top: 45%;
+}
+
+.cheek {
+  width: 15px;
+  height: 10px;
+  background: rgba(255, 150, 150, 0.4);
+  border-radius: 50%;
 }
 
 .petals {
@@ -170,38 +242,57 @@ canvas {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 35px;
-  height: 55px;
-  background: linear-gradient(to bottom, #ffffff 0%, #f5f5f5 100%);
-  border: 2px solid #e0e0e0;
+  width: 40px;
+  height: 60px;
+  background: radial-gradient(ellipse at center bottom, #ffffff 0%, #fff5f5 50%, #ffe8e8 100%);
+  border: 2px solid rgba(255, 192, 203, 0.5);
   border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
   transform-origin: center;
   cursor: pointer;
-  transition: filter 0.3s ease, box-shadow 0.3s ease;
+  transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   z-index: 1;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 
+    0 3px 6px rgba(0,0,0,0.15),
+    inset 0 -2px 4px rgba(255,192,203,0.3);
+}
+
+.petal-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60%;
+  height: 70%;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.6) 0%, transparent 100%);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
 }
 
 .petal:hover:not(.pulled) {
-  filter: brightness(0.98);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-  border-color: #ccc;
+  filter: brightness(1.05);
+  box-shadow: 
+    0 5px 10px rgba(0,0,0,0.25),
+    inset 0 -2px 4px rgba(255,192,203,0.5);
+  border-color: rgba(255, 182, 193, 0.8);
+  z-index: 10;
 }
 
 .petal.pulled {
-  animation: petalFall 1s ease-in forwards;
+  animation: petalFall 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
   pointer-events: none;
 }
 
 @keyframes petalFall {
   0% {
     opacity: 1;
+    filter: blur(0px);
   }
   50% {
-    opacity: 0.8;
+    opacity: 0.9;
+    filter: blur(1px);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) translateY(200px) rotate(720deg) scale(0.3);
+    transform: translate(-50%, -50%) translateY(250px) rotate(720deg) scale(0.2);
+    filter: blur(3px);
   }
 }
