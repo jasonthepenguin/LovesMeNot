@@ -39,6 +39,19 @@ let emotionEndTimeMs = 0;
 let lastFrameTimeMs = performance.now();
 const BILLBOARD_Z_AXIS = new THREE.Vector3(0, 0, 1);
 
+// 3D flower held by character
+let heldFlowerRoot: THREE.Group | null = null;
+let heldFlowerPetals: THREE.Mesh[] = [];
+type PetalAnim = {
+  mesh: THREE.Mesh;
+  velocity: THREE.Vector3;
+  angularVelocity: THREE.Vector3;
+  spawnTimeMs: number;
+  lifeTimeMs: number;
+  accel: THREE.Vector3;
+};
+let activePetalAnims: PetalAnim[] = [];
+
 // Scene setup
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -398,6 +411,59 @@ function createYoshi() {
   yoshiTail = tail;
   
   return group;
+}
+
+// Build a 3D flower to be held by the right hand
+function rebuildHeldFlower(petalCount: number) {
+  // Remove existing
+  if (heldFlowerRoot && heldFlowerRoot.parent) {
+    heldFlowerRoot.parent.remove(heldFlowerRoot);
+  }
+  heldFlowerRoot = null;
+  heldFlowerPetals = [];
+
+  if (!yoshiRightElbow) return;
+
+  const root = new THREE.Group();
+  // Position relative to right elbow so it sits in the hand
+  root.position.set(-0.1, -1.05, 0.75);
+  root.rotation.set(-0.2, -0.35, 0.15);
+
+  const stemMaterial = new THREE.MeshPhongMaterial({ color: 0x2d6e2d, shininess: 20, specular: 0x335533 });
+  const centerMaterial = new THREE.MeshPhongMaterial({ color: 0xffcc33, shininess: 40, specular: 0x553300 });
+  const petalMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 30, specular: 0x666666 });
+
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.4, 8), stemMaterial);
+  stem.position.y = 0.7;
+  stem.castShadow = true;
+  stem.receiveShadow = true;
+  root.add(stem);
+
+  const centerY = 1.42;
+  const center = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), centerMaterial);
+  center.position.y = centerY;
+  center.castShadow = true;
+  root.add(center);
+
+  // Petals arranged around center, index order matches 2D (start at top)
+  const petalRadius = 0.28;
+  for (let i = 0; i < petalCount; i++) {
+    const angle = (i / petalCount) * Math.PI * 2 - Math.PI / 2;
+    const petal = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 10), petalMaterial.clone());
+    petal.scale.set(0.9, 1.1, 0.35);
+    petal.position.set(Math.cos(angle) * petalRadius, centerY, Math.sin(angle) * petalRadius);
+    // Slight tilt away from center
+    petal.lookAt(new THREE.Vector3(Math.cos(angle) * 2, centerY, Math.sin(angle) * 2));
+    petal.castShadow = true;
+    petal.receiveShadow = true;
+    // Store index for pluck mapping
+    (petal.userData as any).petalIndex = i;
+    root.add(petal);
+    heldFlowerPetals.push(petal);
+  }
+
+  heldFlowerRoot = root;
+  yoshiRightElbow.add(root);
 }
 
 // Create 2D flower UI
@@ -853,6 +919,8 @@ const yoshiBaseY = 12.3;
 const yoshi = createYoshi();
 yoshi.position.set(0, yoshiBaseY, 5); // Moved forward so feet dangle over wall
 scene.add(yoshi);
+// Build initial held flower to match starting petals
+rebuildHeldFlower(totalPetals);
 
 // --- Emotion and particles helpers ---
 let heartGeometry: THREE.ShapeGeometry | null = null;
@@ -995,6 +1063,39 @@ function updateParticles(dtSeconds: number) {
   }
 }
 
+function pluckHeldFlowerPetal(indexZeroBased: number) {
+  if (!heldFlowerPetals || heldFlowerPetals.length === 0) return;
+  // Find the first non-removed petal matching the index mapping
+  const petal = heldFlowerPetals[indexZeroBased];
+  if (!petal || !(petal as any).parent) return;
+
+  // Detach to world for independent animation
+  const worldPos = new THREE.Vector3();
+  petal.getWorldPosition(worldPos);
+  const worldQuat = new THREE.Quaternion();
+  petal.getWorldQuaternion(worldQuat);
+  petal.parent?.remove(petal);
+  petal.position.copy(worldPos);
+  petal.quaternion.copy(worldQuat);
+  scene.add(petal);
+
+  // Setup animation parameters
+  const dir = new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.9 + Math.random() * 0.5, (Math.random() - 0.5) * 0.6);
+  const vel = dir.multiplyScalar(0.9);
+  const angVel = new THREE.Vector3((Math.random() - 0.5) * 2.0, (Math.random() - 0.5) * 2.0, (Math.random() - 0.5) * 2.0);
+  activePetalAnims.push({
+    mesh: petal,
+    velocity: vel,
+    angularVelocity: angVel,
+    spawnTimeMs: performance.now(),
+    lifeTimeMs: 2200 + Math.random() * 600,
+    accel: new THREE.Vector3(0, -0.9, 0),
+  });
+
+  // Mark removed slot so we don't try to pluck again
+  heldFlowerPetals[indexZeroBased] = null as any;
+}
+
 // UI Elements
 function createUI() {
   // Status text
@@ -1041,6 +1142,8 @@ function pullPetal(petal: HTMLElement) {
   
   // Update flower face
   updateFlowerFace(lovesMe);
+  // Also pluck a 3D petal from the held flower
+  pluckHeldFlowerPetal(currentPetal - 1);
   
   // Update status text
   if (currentPetal === totalPetals) {
@@ -1077,6 +1180,8 @@ function resetGame() {
   
   // Create new petals
   createPetals();
+  // Rebuild 3D held flower to match new petal count
+  rebuildHeldFlower(totalPetals);
   
   // Reset face
   updateFlowerFace(true);
@@ -1186,6 +1291,25 @@ function animate() {
 
   // Particles
   updateParticles(dtSeconds);
+  // 3D petal anims
+  for (let i = activePetalAnims.length - 1; i >= 0; i--) {
+    const p = activePetalAnims[i];
+    p.velocity.addScaledVector(p.accel, dtSeconds);
+    p.mesh.position.addScaledVector(p.velocity, dtSeconds);
+    p.mesh.rotation.x += p.angularVelocity.x * dtSeconds;
+    p.mesh.rotation.y += p.angularVelocity.y * dtSeconds;
+    p.mesh.rotation.z += p.angularVelocity.z * dtSeconds;
+    const age = performance.now() - p.spawnTimeMs;
+    const life = p.lifeTimeMs;
+    const a = 1 - Math.min(1, age / life);
+    const mat = p.mesh.material as THREE.MeshPhongMaterial;
+    mat.opacity = a;
+    mat.transparent = true;
+    if (age >= life) {
+      scene.remove(p.mesh);
+      activePetalAnims.splice(i, 1);
+    }
+  }
 
   // Subtle water motion
   if (waterSurface && deepWaterSurface) {
