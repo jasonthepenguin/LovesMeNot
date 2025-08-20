@@ -63,14 +63,13 @@ controls.minDistance = 10;
 controls.maxDistance = 50;
 
 // Camera position
-camera.position.set(20.92, 23.86, -11.35);
-// Set the look direction based on the look vector
-const lookTarget = new THREE.Vector3(
-  camera.position.x - 0.709,
-  camera.position.y - 0.402,
-  camera.position.z + 0.579
-);
+camera.position.set(-7.98, 21.07, 22.90);
+// Set the look direction based on provided look vector; set controls target so it persists
+const lookVectorInit = new THREE.Vector3(0.207, -0.342, -0.917);
+const lookTarget = new THREE.Vector3().copy(camera.position).add(lookVectorInit);
 camera.lookAt(lookTarget);
+controls.target.copy(lookTarget);
+controls.update();
 
 // Gentle atmospheric fog
 scene.fog = new THREE.Fog(0xffccaa, 80, 220);
