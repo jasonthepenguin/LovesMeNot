@@ -22,6 +22,23 @@ let hillsGroupRef: THREE.Group; // reference to hills group for hill-top placeme
 let yoshiLeftElbow: THREE.Group;
 let yoshiRightElbow: THREE.Group;
 
+// Particles and emotion state
+let activeParticles: Array<{
+  mesh: THREE.Mesh;
+  velocity: THREE.Vector3;
+  angularVelocity: number;
+  rotZ: number;
+  spawnTimeMs: number;
+  lifeTimeMs: number;
+  accelY: number;
+  startScale: number;
+  endScale: number;
+}> = [];
+let yoshiEmotion: 'neutral' | 'happy' | 'sad' = 'neutral';
+let emotionEndTimeMs = 0;
+let lastFrameTimeMs = performance.now();
+const BILLBOARD_Z_AXIS = new THREE.Vector3(0, 0, 1);
+
 // Scene setup
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -838,6 +855,147 @@ const yoshi = createYoshi();
 yoshi.position.set(0, yoshiBaseY, 5); // Moved forward so feet dangle over wall
 scene.add(yoshi);
 
+// --- Emotion and particles helpers ---
+let heartGeometry: THREE.ShapeGeometry | null = null;
+function getHeartGeometry(): THREE.ShapeGeometry {
+  if (heartGeometry) return heartGeometry;
+  const shape = new THREE.Shape();
+  const x = 0, y = 0;
+  shape.moveTo(x + 0.25, y + 0.25);
+  shape.bezierCurveTo(x + 0.25, y + 0.25, x + 0.2, y, x, y);
+  shape.bezierCurveTo(x - 0.3, y, x - 0.3, y + 0.35, x - 0.3, y + 0.35);
+  shape.bezierCurveTo(x - 0.3, y + 0.55, x - 0.15, y + 0.77, x + 0.25, y + 0.95);
+  shape.bezierCurveTo(x + 0.55, y + 0.77, x + 0.8, y + 0.55, x + 0.8, y + 0.35);
+  shape.bezierCurveTo(x + 0.8, y + 0.35, x + 0.8, y, x + 0.5, y);
+  shape.bezierCurveTo(x + 0.35, y, x + 0.25, y + 0.25, x + 0.25, y + 0.25);
+  const geo = new THREE.ShapeGeometry(shape);
+  geo.center();
+  heartGeometry = geo;
+  return geo;
+}
+
+function getYoshiHeadWorldPosition(out = new THREE.Vector3()): THREE.Vector3 {
+  if (yoshiHeadGroup) {
+    yoshiHeadGroup.getWorldPosition(out);
+  } else {
+    out.set(0, yoshiBaseY + 2, 5);
+  }
+  return out;
+}
+
+function spawnHeartParticle(params: {
+  color: number;
+  origin: THREE.Vector3;
+  velocity: THREE.Vector3;
+  lifeTimeMs: number;
+  startScale: number;
+  endScale: number;
+  accelY: number;
+}): void {
+  const geom = getHeartGeometry();
+  const mat = new THREE.MeshBasicMaterial({ color: params.color, transparent: true, opacity: 1, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.position.copy(params.origin);
+  mesh.scale.setScalar(params.startScale);
+  // Initial billboard facing
+  mesh.quaternion.copy(camera.quaternion);
+  scene.add(mesh);
+  activeParticles.push({
+    mesh,
+    velocity: params.velocity.clone(),
+    angularVelocity: (Math.random() * 2 - 1) * 2.0, // rad/s around facing axis
+    rotZ: Math.random() * Math.PI * 2,
+    spawnTimeMs: performance.now(),
+    lifeTimeMs: params.lifeTimeMs,
+    accelY: params.accelY,
+    startScale: params.startScale,
+    endScale: params.endScale,
+  });
+}
+
+function emitHeartsBurst(count = 18) {
+  const origin = getYoshiHeadWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.6, 0));
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.8 + Math.random() * 1.2;
+    const vx = Math.cos(angle) * 0.35;
+    const vz = Math.sin(angle) * 0.35;
+    const vy = 1.2 + Math.random() * 1.1;
+    spawnHeartParticle({
+      color: 0xff4da6,
+      origin: origin.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.4, (Math.random()) * 0.2, (Math.random() - 0.5) * 0.4)),
+      velocity: new THREE.Vector3(vx * speed, vy, vz * speed),
+      lifeTimeMs: 2200 + Math.random() * 600,
+      startScale: 0.14 + Math.random() * 0.06,
+      endScale: 0.05 + Math.random() * 0.04,
+      accelY: -0.35,
+    });
+  }
+}
+
+function emitSadBurst(count = 16) {
+  const origin = getYoshiHeadWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.2, 0));
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.4 + Math.random() * 0.8;
+    const vx = Math.cos(angle) * 0.25 * speed;
+    const vz = Math.sin(angle) * 0.25 * speed;
+    const vy = -(0.8 + Math.random() * 0.8);
+    spawnHeartParticle({
+      color: 0x7fb3ff,
+      origin: origin.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.2, (Math.random() - 0.2) * 0.2, (Math.random() - 0.5) * 0.2)),
+      velocity: new THREE.Vector3(vx, vy, vz),
+      lifeTimeMs: 1800 + Math.random() * 500,
+      startScale: 0.12 + Math.random() * 0.05,
+      endScale: 0.04 + Math.random() * 0.03,
+      accelY: -0.6,
+    });
+  }
+}
+
+function triggerRoundEndEffects(isHappy: boolean) {
+  yoshiEmotion = isHappy ? 'happy' : 'sad';
+  emotionEndTimeMs = performance.now() + 2800;
+  if (isHappy) {
+    emitHeartsBurst(20);
+    setTimeout(() => emitHeartsBurst(14), 200);
+    setTimeout(() => emitHeartsBurst(12), 400);
+  } else {
+    emitSadBurst(18);
+    setTimeout(() => emitSadBurst(12), 180);
+    setTimeout(() => emitSadBurst(10), 360);
+  }
+}
+
+function updateParticles(dtSeconds: number) {
+  const now = performance.now();
+  for (let i = activeParticles.length - 1; i >= 0; i--) {
+    const p = activeParticles[i];
+    const ageMs = now - p.spawnTimeMs;
+    const lifeMs = p.lifeTimeMs;
+    const age01 = Math.min(1, Math.max(0, ageMs / lifeMs));
+    // physics
+    p.velocity.y += p.accelY * dtSeconds;
+    p.mesh.position.x += p.velocity.x * dtSeconds;
+    p.mesh.position.y += p.velocity.y * dtSeconds;
+    p.mesh.position.z += p.velocity.z * dtSeconds;
+    // billboard + spin
+    p.rotZ += p.angularVelocity * dtSeconds;
+    p.mesh.quaternion.copy(camera.quaternion);
+    p.mesh.rotateOnAxis(BILLBOARD_Z_AXIS, p.rotZ);
+    // scale & fade
+    const scale = p.startScale + (p.endScale - p.startScale) * age01;
+    p.mesh.scale.setScalar(scale);
+    const mat = p.mesh.material as THREE.MeshBasicMaterial;
+    mat.opacity = 1 - age01;
+    // lifetime
+    if (ageMs >= lifeMs) {
+      scene.remove(p.mesh);
+      activeParticles.splice(i, 1);
+    }
+  }
+}
+
 // UI Elements
 function createUI() {
   // Status text
@@ -889,6 +1047,8 @@ function pullPetal(petal: HTMLElement) {
   if (currentPetal === totalPetals) {
     statusText.textContent = lovesMe ? '💖 LOVES ME! 💖' : '💔 Loves me not... 💔';
     statusText.classList.add(lovesMe ? 'loves-me' : 'loves-me-not');
+    // Trigger particles and yoshi emotion
+    triggerRoundEndEffects(lovesMe);
     
     // Hide flower and show new round button after delay
     setTimeout(() => {
@@ -905,6 +1065,13 @@ function resetGame() {
   // Reset game state
   currentPetal = 0;
   lovesMe = true;
+  yoshiEmotion = 'neutral';
+  emotionEndTimeMs = 0;
+  // Clear particles
+  for (const p of activeParticles) {
+    scene.remove(p.mesh);
+  }
+  activeParticles = [];
   
   // Random number of petals
   totalPetals = 6 + Math.floor(Math.random() * 5); // Random 6-10 petals
@@ -955,34 +1122,71 @@ function updateCameraInfo() {
 // Animation loop
 function animate() {
   requestAnimationFrame(animate);
-  
-  // Animate Yoshi idle
-  yoshi.rotation.y = Math.sin(Date.now() * 0.001) * 0.1;
-  yoshi.position.y = yoshiBaseY + Math.sin(Date.now() * 0.002) * 0.1;
-  const t = Date.now() * 0.001;
+
+  const nowMs = performance.now();
+  const dtSeconds = Math.min(0.033, Math.max(0.001, (nowMs - lastFrameTimeMs) / 1000));
+  lastFrameTimeMs = nowMs;
+  const t = nowMs * 0.001;
+
+  const isEmoting = yoshiEmotion !== 'neutral' && nowMs < emotionEndTimeMs;
+
+  // Animate Yoshi idle/emotion
+  yoshi.rotation.y = Math.sin(t * 1.0) * 0.1 * (isEmoting ? 0.3 : 1);
+  yoshi.position.y = yoshiBaseY + Math.sin(t * 2.0) * 0.1 * (isEmoting ? 0.5 : 1);
   if (yoshiHeadGroup) {
-    yoshiHeadGroup.rotation.x = Math.sin(t * 0.9) * 0.03;
-    yoshiHeadGroup.rotation.y = Math.sin(t * 0.5) * 0.03;
+    if (isEmoting && yoshiEmotion === 'happy') {
+      yoshiHeadGroup.rotation.x = 0.12 + Math.sin(t * 6.0) * 0.06;
+      yoshiHeadGroup.rotation.y = Math.sin(t * 3.0) * 0.08;
+    } else if (isEmoting && yoshiEmotion === 'sad') {
+      yoshiHeadGroup.rotation.x = -0.18 + Math.sin(t * 1.5) * 0.02;
+      yoshiHeadGroup.rotation.y = 0;
+    } else {
+      yoshiHeadGroup.rotation.x = Math.sin(t * 0.9) * 0.03;
+      yoshiHeadGroup.rotation.y = Math.sin(t * 0.5) * 0.03;
+    }
   }
   if (yoshiTail) {
-    yoshiTail.rotation.y = Math.sin(t * 2.0) * 0.3;
+    yoshiTail.rotation.y = Math.sin(t * (isEmoting ? 5.0 : 2.0)) * (isEmoting && yoshiEmotion === 'happy' ? 0.5 : 0.3);
   }
-  // Hands fiddling: small alternating motions near the center
+  // Hands: idle fiddling unless emoting; during happy raise arms, during sad droop
   if (yoshiLeftElbow && yoshiRightElbow) {
     const lbase: THREE.Vector3 = yoshiLeftElbow.userData.base;
     const rbase: THREE.Vector3 = yoshiRightElbow.userData.base;
-    const amp = 0.05;
-    const phase = Math.sin(t * 3.0) * amp;
-    yoshiLeftElbow.position.set(lbase.x + phase, lbase.y + Math.sin(t * 4.0) * amp, lbase.z + Math.cos(t * 2.5) * amp);
-    yoshiRightElbow.position.set(rbase.x - phase, rbase.y + Math.cos(t * 4.0) * amp, rbase.z + Math.sin(t * 2.8) * amp);
+    if (isEmoting && yoshiEmotion === 'happy') {
+      yoshiLeftElbow.position.set(lbase.x + 0.1, lbase.y + 0.5 + Math.sin(t * 6.0) * 0.05, lbase.z + 0.1);
+      yoshiRightElbow.position.set(rbase.x - 0.1, rbase.y + 0.5 + Math.cos(t * 6.2) * 0.05, rbase.z + 0.1);
+    } else if (isEmoting && yoshiEmotion === 'sad') {
+      yoshiLeftElbow.position.set(lbase.x - 0.05, lbase.y - 0.35, lbase.z + 0.05);
+      yoshiRightElbow.position.set(rbase.x + 0.05, rbase.y - 0.35, rbase.z + 0.05);
+    } else {
+      const amp = 0.05;
+      const phase = Math.sin(t * 3.0) * amp;
+      yoshiLeftElbow.position.set(lbase.x + phase, lbase.y + Math.sin(t * 4.0) * amp, lbase.z + Math.cos(t * 2.5) * amp);
+      yoshiRightElbow.position.set(rbase.x - phase, rbase.y + Math.cos(t * 4.0) * amp, rbase.z + Math.sin(t * 2.8) * amp);
+    }
   }
-  // Occasional blink every ~4s
-  const blinkPhase = t % 4.0;
-  const eyeScaleY = blinkPhase < 0.06 ? 0.15 : (blinkPhase < 0.08 ? 0.4 : (blinkPhase < 0.10 ? 0.15 : 1.0));
+  // Eye blink/expressions
   if (yoshiLeftEye && yoshiRightEye) {
+    let eyeScaleY = 1.0;
+    if (isEmoting && yoshiEmotion === 'happy') {
+      eyeScaleY = 1.0 + Math.sin(t * 8.0) * 0.05;
+    } else if (isEmoting && yoshiEmotion === 'sad') {
+      eyeScaleY = 0.6 + Math.sin(t * 2.0) * 0.02;
+    } else {
+      const blinkPhase = t % 4.0;
+      eyeScaleY = blinkPhase < 0.06 ? 0.15 : (blinkPhase < 0.08 ? 0.4 : (blinkPhase < 0.10 ? 0.15 : 1.0));
+    }
     yoshiLeftEye.scale.y = eyeScaleY;
     yoshiRightEye.scale.y = eyeScaleY;
   }
+
+  // End emotion after timer
+  if (yoshiEmotion !== 'neutral' && nowMs >= emotionEndTimeMs) {
+    yoshiEmotion = 'neutral';
+  }
+
+  // Particles
+  updateParticles(dtSeconds);
 
   // Subtle water motion
   if (waterSurface && deepWaterSurface) {
