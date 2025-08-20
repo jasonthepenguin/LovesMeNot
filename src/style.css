@@ -109,7 +109,7 @@ canvas {
 /* 2D Flower UI */
 .flower-container {
   position: absolute;
-  bottom: 30px;
+  bottom: 150px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -136,7 +136,7 @@ canvas {
   left: 50%;
   transform: translateX(-50%);
   width: 8px;
-  height: 60px;
+  height: 180px;
   background: linear-gradient(to bottom, #4a9e4a 0%, #2d6e2d 100%);
   border-radius: 4px;
   z-index: 0;
@@ -169,6 +169,28 @@ canvas {
     0 4px 8px rgba(0,0,0,0.3);
   position: relative;
   overflow: hidden;
+  transition: border-color 0.4s ease;
+}
+
+.flower-center::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: radial-gradient(circle at 30% 30%, #9fc9ff, #356ea3);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  z-index: 1;
+}
+
+.flower-center.sad {
+  border-color: #2e5c85;
+}
+
+.flower-center.sad::after {
+  opacity: 1;
 }
 
 .flower-shine {

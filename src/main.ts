@@ -17,7 +17,8 @@ let yoshiRightEye: THREE.Mesh;
 let waterSurface: THREE.Mesh;
 let deepWaterSurface: THREE.Mesh;
 let cloudGroups: THREE.Group[] = [];
-let hillsMeta: Array<{ x: number; z: number; rx: number; rz: number }> = [];
+let hillsMeta: Array<{ x: number; z: number; rx: number; rz: number; y: number; ry: number }> = [];
+let hillsGroupRef: THREE.Group; // reference to hills group for hill-top placement
 let yoshiLeftElbow: THREE.Group;
 let yoshiRightElbow: THREE.Group;
 
@@ -446,12 +447,15 @@ function createPetals() {
 
 function updateFlowerFace(happy: boolean) {
   const mouth = document.querySelector('.flower-mouth')!;
+  const face = document.getElementById('flower-face')!;
   if (happy) {
     mouth.classList.add('happy');
     mouth.classList.remove('sad');
+    face.classList.remove('sad');
   } else {
     mouth.classList.add('sad');
     mouth.classList.remove('happy');
+    face.classList.add('sad');
   }
 }
 
@@ -460,7 +464,7 @@ function createGround() {
   const group = new THREE.Group();
   
   // Main ground (larger)
-  const groundGeometry = new THREE.PlaneGeometry(200, 200);
+  const groundGeometry = new THREE.PlaneGeometry(800, 800);
   const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x77aa77 });
   const ground = new THREE.Mesh(groundGeometry, groundMaterial);
   ground.rotation.x = -Math.PI / 2;
@@ -592,31 +596,31 @@ function createHills() {
   hill1.position.set(-50, -10, -60);
   hill1.scale.set(2.5, 1.2, 2.5);
   group.add(hill1);
-  hillsMeta.push({ x: hill1.position.x, z: hill1.position.z, rx: 25 * hill1.scale.x, rz: 25 * hill1.scale.z });
+  hillsMeta.push({ x: hill1.position.x, z: hill1.position.z, rx: 25 * hill1.scale.x, rz: 25 * hill1.scale.z, y: hill1.position.y, ry: 25 * hill1.scale.y });
   
   const hill2 = new THREE.Mesh(hillGeometry, hillMaterial);
   hill2.position.set(45, -12, -65);
   hill2.scale.set(2, 1, 2);
   group.add(hill2);
-  hillsMeta.push({ x: hill2.position.x, z: hill2.position.z, rx: 25 * hill2.scale.x, rz: 25 * hill2.scale.z });
+  hillsMeta.push({ x: hill2.position.x, z: hill2.position.z, rx: 25 * hill2.scale.x, rz: 25 * hill2.scale.z, y: hill2.position.y, ry: 25 * hill2.scale.y });
   
   const hill3 = new THREE.Mesh(hillGeometry, hillMaterial);
   hill3.position.set(30, -15, -80);  // Moved to the side to avoid bridge
   hill3.scale.set(3.5, 1.5, 2.5);
   group.add(hill3);
-  hillsMeta.push({ x: hill3.position.x, z: hill3.position.z, rx: 25 * hill3.scale.x, rz: 25 * hill3.scale.z });
+  hillsMeta.push({ x: hill3.position.x, z: hill3.position.z, rx: 25 * hill3.scale.x, rz: 25 * hill3.scale.z, y: hill3.position.y, ry: 25 * hill3.scale.y });
   
   const hill4 = new THREE.Mesh(hillGeometry, hillMaterial);
   hill4.position.set(-60, -8, 30);
   hill4.scale.set(2, 1.3, 2);
   group.add(hill4);
-  hillsMeta.push({ x: hill4.position.x, z: hill4.position.z, rx: 25 * hill4.scale.x, rz: 25 * hill4.scale.z });
+  hillsMeta.push({ x: hill4.position.x, z: hill4.position.z, rx: 25 * hill4.scale.x, rz: 25 * hill4.scale.z, y: hill4.position.y, ry: 25 * hill4.scale.y });
   
   const hill5 = new THREE.Mesh(hillGeometry, hillMaterial);
   hill5.position.set(55, -10, 40);
   hill5.scale.set(2.2, 1, 2.2);
   group.add(hill5);
-  hillsMeta.push({ x: hill5.position.x, z: hill5.position.z, rx: 25 * hill5.scale.x, rz: 25 * hill5.scale.z });
+  hillsMeta.push({ x: hill5.position.x, z: hill5.position.z, rx: 25 * hill5.scale.x, rz: 25 * hill5.scale.z, y: hill5.position.y, ry: 25 * hill5.scale.y });
   
   // Add some distant mountains
   const mountainGeometry = new THREE.ConeGeometry(30, 40, 8);
@@ -633,6 +637,7 @@ function createHills() {
   mountain2.rotation.y = Math.random() * Math.PI;
   group.add(mountain2);
   
+  hillsGroupRef = group;
   return group;
 }
 
@@ -727,6 +732,93 @@ function createClouds() {
   return group;
 }
 
+// Small wildflowers sprinkled around and on hilltops
+function createFlowers() {
+  const flowersRoot = new THREE.Group();
+  const groundFlowers = new THREE.Group();
+  const hillFlowers = new THREE.Group();
+
+  const stemMaterial = new THREE.MeshPhongMaterial({ color: 0x2d6e2d });
+  const centerMaterial = new THREE.MeshPhongMaterial({ color: 0xffdd55 });
+  const petalPalettes = [
+    0xffffff, 0xffe6f2, 0xfff7c2, 0xd6f5ff, 0xe6ffe6, 0xffdde1, 0xf0f8ff
+  ];
+
+  function makeSmallFlower(scaleBoost = 1) {
+    const g = new THREE.Group();
+
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04 * scaleBoost, 0.05 * scaleBoost, 0.6 * scaleBoost, 6), stemMaterial);
+    stem.position.y = 0.3 * scaleBoost;
+    stem.castShadow = true;
+    stem.receiveShadow = true;
+    g.add(stem);
+
+    const center = new THREE.Mesh(new THREE.SphereGeometry(0.08 * scaleBoost, 8, 8), centerMaterial);
+    center.position.y = 0.6 * scaleBoost;
+    center.castShadow = true;
+    g.add(center);
+
+    const petalCount = 5 + Math.floor(Math.random() * 3);
+    const petalRadius = 0.18 * scaleBoost;
+    for (let i = 0; i < petalCount; i++) {
+      const angle = (i / petalCount) * Math.PI * 2;
+      const color = petalPalettes[Math.floor(Math.random() * petalPalettes.length)];
+      const petal = new THREE.Mesh(new THREE.SphereGeometry(0.09 * scaleBoost, 8, 8), new THREE.MeshPhongMaterial({ color }));
+      petal.position.set(Math.cos(angle) * petalRadius, 0.6 * scaleBoost, Math.sin(angle) * petalRadius);
+      petal.castShadow = true;
+      g.add(petal);
+    }
+
+    g.rotation.y = Math.random() * Math.PI * 2;
+    return g;
+  }
+
+  // Scatter on the island grass top around the castle
+  const islandTopY = 2.2; // grass top at 2.1 with height 0.2 → top ~2.2
+  const islandInnerR = 7.0; // avoid castle footprint (~12x12)
+  const islandOuterR = 17.0; // within grass radius (18), leave small margin
+  const islandTarget = 80;
+  let islandPlaced = 0;
+  let islandAttempts = 0;
+  while (islandPlaced < islandTarget && islandAttempts < 1000) {
+    islandAttempts++;
+    const angle = Math.random() * Math.PI * 2;
+    const radius = islandInnerR + Math.random() * (islandOuterR - islandInnerR);
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+
+    const f = makeSmallFlower(1);
+    f.position.set(x, islandTopY, z);
+    groundFlowers.add(f);
+    islandPlaced++;
+  }
+
+  // Clusters on hilltops for visibility
+  for (const h of hillsMeta) {
+    const topY = h.y + h.ry;
+    const clusterCount = 6 + Math.floor(Math.random() * 4);
+    const spreadX = Math.max(1.5, h.rx * 0.18);
+    const spreadZ = Math.max(1.5, h.rz * 0.18);
+    for (let i = 0; i < clusterCount; i++) {
+      const dx = (Math.random() - 0.5) * 2 * spreadX;
+      const dz = (Math.random() - 0.5) * 2 * spreadZ;
+      const flower = makeSmallFlower(1.6);
+      flower.position.set(h.x + dx, topY + 0.25, h.z + dz);
+      hillFlowers.add(flower);
+    }
+  }
+
+  flowersRoot.add(groundFlowers);
+  // Prefer attaching hill flowers under the hills group if available
+  if (typeof hillsGroupRef !== 'undefined' && hillsGroupRef) {
+    hillsGroupRef.add(hillFlowers);
+  } else {
+    flowersRoot.add(hillFlowers);
+  }
+
+  return flowersRoot;
+}
+
 // Initialize scene
 createSky();
 scene.add(createGround());
@@ -734,6 +826,7 @@ scene.add(createWater());
 scene.add(createBridge());
 scene.add(createHills());
 scene.add(createTrees());
+scene.add(createFlowers());
 scene.add(createClouds());
 
 const castle = createCastle();
