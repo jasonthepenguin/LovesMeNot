@@ -949,20 +949,30 @@ function createTrees() {
     return false;
   }
 
+  // Keep trees well spaced to reduce clustering
+  const placedPositions: Array<{ x: number; z: number }> = [];
+  const minTreeDistance = 12; // units
+
   function isValid(x: number, z: number): boolean {
     const r = Math.sqrt(x * x + z * z);
     if (r < 40) return false; // keep outside moat area
     if (isInHillFootprint(x, z)) return false;
+    // Enforce minimum spacing between trees
+    for (const p of placedPositions) {
+      const dx = x - p.x;
+      const dz = z - p.z;
+      if (dx * dx + dz * dz < minTreeDistance * minTreeDistance) return false;
+    }
     return true;
   }
 
   const targetCount = 10;
   let placed = 0;
   let attempts = 0;
-  while (placed < targetCount && attempts < 200) {
+  while (placed < targetCount && attempts < 800) {
     attempts++;
     const angle = Math.random() * Math.PI * 2;
-    const radius = 45 + Math.random() * 35; // 45..80
+    const radius = 50 + Math.random() * 40; // 50..90
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
     if (!isValid(x, z)) continue;
@@ -986,6 +996,7 @@ function createTrees() {
     tree.position.set(x, 0, z);
     group.add(tree);
     placed++;
+    placedPositions.push({ x, z });
   }
 
   return group;
@@ -1086,7 +1097,6 @@ function createFlowers() {
 
   // Clusters on hilltops for visibility
   for (const h of hillsMeta) {
-    const topY = h.y + h.ry;
     const clusterCount = 6 + Math.floor(Math.random() * 4);
     const spreadX = Math.max(1.5, h.rx * 0.18);
     const spreadZ = Math.max(1.5, h.rz * 0.18);
@@ -1094,7 +1104,15 @@ function createFlowers() {
       const dx = (Math.random() - 0.5) * 2 * spreadX;
       const dz = (Math.random() - 0.5) * 2 * spreadZ;
       const flower = makeSmallFlower(1.6);
-      flower.position.set(h.x + dx, topY + 0.25, h.z + dz);
+      // Place flower on the hill ellipsoid surface and lower slightly to avoid hovering
+      const nx = dx / h.rx;
+      const nz = dz / h.rz;
+      const inside = Math.max(0, 1 - nx * nx - nz * nz);
+      const dy = h.ry * Math.sqrt(inside);
+      const ySurface = h.y + dy;
+      // tiny inset to avoid hovering while preventing z-fighting
+      const groundOffset = -0.02;
+      flower.position.set(h.x + dx, ySurface + groundOffset, h.z + dz);
       hillFlowers.add(flower);
     }
   }
