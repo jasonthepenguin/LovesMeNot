@@ -27,6 +27,16 @@ let hillsGroupRef: THREE.Group; // reference to hills group for hill-top placeme
 let yoshiLeftElbow: THREE.Group;
 let yoshiRightElbow: THREE.Group;
 
+// Pink character references
+let pinkCharacter: THREE.Group | null = null;
+let pinkCharacterMixer: THREE.AnimationMixer | null = null;
+let isPinkCharacterWalking = false;
+let isPinkCharacterWaving = false;
+let pinkWalkStartTime = 0;
+let pinkWalkDuration = 4000; // ms to walk across bridge
+let pinkWaveStartTime = 0;
+let pinkWaveDuration = 3000; // ms to wave
+
 // Particles and emotion state
 let activeParticles: Array<{
   mesh: THREE.Mesh;
@@ -399,6 +409,140 @@ function createCastle() {
     right.castShadow = true;
     group.add(right);
   }
+  
+  return group;
+}
+
+// Create pink version of character (crush)
+function createPinkCharacter() {
+  const group = new THREE.Group();
+  
+  // Body (standing position)
+  const bodyGeometry = new THREE.SphereGeometry(1.9, 20, 20);
+  const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0xff69b4, specular: 0x662244, shininess: 20 });
+  const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+  body.scale.set(0.95, 1.05, 0.85);
+  body.position.y = 1.2;
+  body.castShadow = true;
+  group.add(body);
+  
+  // Belly (lighter pink)
+  const bellyGeometry = new THREE.SphereGeometry(1.55, 20, 20);
+  const bellyMaterial = new THREE.MeshPhongMaterial({ color: 0xffccdd, specular: 0x553344, shininess: 25 });
+  const belly = new THREE.Mesh(bellyGeometry, bellyMaterial);
+  belly.position.set(0, 1.1, 0.68);
+  belly.scale.set(0.72, 0.72, 0.42);
+  group.add(belly);
+  
+  // Head
+  const headGroup = new THREE.Group();
+  headGroup.position.set(0, 3.6, 0.28);
+  group.add(headGroup);
+  
+  const headGeometry = new THREE.SphereGeometry(1.65, 20, 20);
+  const headMaterial = new THREE.MeshPhongMaterial({ color: 0xff88cc, specular: 0x662244, shininess: 25 });
+  const head = new THREE.Mesh(headGeometry, headMaterial);
+  head.scale.set(1.08, 1.0, 1.18);
+  head.castShadow = true;
+  headGroup.add(head);
+  
+  // Snout
+  const snoutGeometry = new THREE.SphereGeometry(0.95, 20, 20);
+  const snoutMaterial = new THREE.MeshPhongMaterial({ color: 0xffaadd, specular: 0x662244, shininess: 20 });
+  const snout = new THREE.Mesh(snoutGeometry, snoutMaterial);
+  snout.position.set(0, -0.22, 1.26);
+  snout.scale.set(1.18, 0.92, 1.0);
+  headGroup.add(snout);
+  
+  // Eyes
+  const eyeWhiteGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+  const eyeWhiteMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+  
+  const leftEyeWhite = new THREE.Mesh(eyeWhiteGeometry, eyeWhiteMaterial);
+  leftEyeWhite.position.set(-0.76, 0.52, 1.46);
+  leftEyeWhite.scale.set(0.78, 1, 0.68);
+  headGroup.add(leftEyeWhite);
+  
+  const rightEyeWhite = new THREE.Mesh(eyeWhiteGeometry, eyeWhiteMaterial);
+  rightEyeWhite.position.set(0.76, 0.52, 1.46);
+  rightEyeWhite.scale.set(0.78, 1, 0.68);
+  headGroup.add(rightEyeWhite);
+  
+  // Pupils
+  const pupilGeometry = new THREE.SphereGeometry(0.25, 8, 8);
+  const pupilMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });
+  const leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+  leftPupil.position.set(0, 0, 0.28);
+  leftEyeWhite.add(leftPupil);
+  const rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+  rightPupil.position.set(0, 0, 0.28);
+  rightEyeWhite.add(rightPupil);
+  
+  // Shell (pink/purple)
+  const shellGeometry = new THREE.SphereGeometry(1.8, 12, 8);
+  const shellMaterial = new THREE.MeshPhongMaterial({ color: 0xcc44cc });
+  const shell = new THREE.Mesh(shellGeometry, shellMaterial);
+  shell.position.set(0, 1.9, -1.2);
+  shell.scale.set(1.2, 1, 1);
+  shell.castShadow = true;
+  group.add(shell);
+  
+  // Simple arms (for waving)
+  const armGeometry = new THREE.CylinderGeometry(0.35, 0.4, 2.2, 8);
+  const armMaterial = new THREE.MeshPhongMaterial({ color: 0xff88bb });
+  
+  // Left arm (will be animated for waving)
+  const leftArmGroup = new THREE.Group();
+  leftArmGroup.position.set(-1.6, 2.3, 0.2);
+  group.add(leftArmGroup);
+  const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+  leftArm.position.y = -1.1;
+  leftArm.rotation.z = Math.PI / 8;
+  leftArmGroup.add(leftArm);
+  // Store reference for wave animation
+  leftArmGroup.name = 'leftArm';
+  
+  // Right arm
+  const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+  rightArm.position.set(1.6, 1.2, 0.2);
+  rightArm.rotation.z = -Math.PI / 8;
+  group.add(rightArm);
+  
+  // Legs (standing/walking position)
+  const legGeometry = new THREE.CylinderGeometry(0.45, 0.5, 2.5, 8);
+  const legMaterial = new THREE.MeshPhongMaterial({ color: 0xff88bb });
+  
+  // Left leg
+  const leftLegGroup = new THREE.Group();
+  leftLegGroup.position.set(-0.8, 0, 0);
+  group.add(leftLegGroup);
+  const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+  leftLeg.position.y = -1.25;
+  leftLegGroup.add(leftLeg);
+  leftLegGroup.name = 'leftLeg';
+  
+  // Right leg
+  const rightLegGroup = new THREE.Group();
+  rightLegGroup.position.set(0.8, 0, 0);
+  group.add(rightLegGroup);
+  const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+  rightLeg.position.y = -1.25;
+  rightLegGroup.add(rightLeg);
+  rightLegGroup.name = 'rightLeg';
+  
+  // Feet
+  const footGeometry = new THREE.SphereGeometry(0.7, 8, 8);
+  const footMaterial = new THREE.MeshPhongMaterial({ color: 0xff8800 });
+  
+  const leftFoot = new THREE.Mesh(footGeometry, footMaterial);
+  leftFoot.position.set(-0.8, -2.5, 0.5);
+  leftFoot.scale.set(1.2, 0.8, 1.5);
+  group.add(leftFoot);
+  
+  const rightFoot = new THREE.Mesh(footGeometry, footMaterial);
+  rightFoot.position.set(0.8, -2.5, 0.5);
+  rightFoot.scale.set(1.2, 0.8, 1.5);
+  group.add(rightFoot);
   
   return group;
 }
@@ -1290,6 +1434,33 @@ function showSadEmojiOverlay() {
   setTimeout(() => overlay.remove(), 2600);
 }
 
+// Start pink character walk and wave animation
+function startPinkCharacterSequence() {
+  if (!pinkCharacter) {
+    pinkCharacter = createPinkCharacter();
+    // Start position: far side of bridge, raised up properly
+    pinkCharacter.position.set(0, 4, 40);
+    pinkCharacter.rotation.y = Math.PI; // Face toward castle
+    scene.add(pinkCharacter);
+  }
+  
+  // Reset animation state
+  isPinkCharacterWalking = true;
+  isPinkCharacterWaving = false;
+  pinkWalkStartTime = performance.now();
+  pinkCharacter.visible = true;
+}
+
+// Clean up pink character after sequence
+function removePinkCharacter() {
+  if (pinkCharacter && pinkCharacter.parent) {
+    scene.remove(pinkCharacter);
+    pinkCharacter = null;
+  }
+  isPinkCharacterWalking = false;
+  isPinkCharacterWaving = false;
+}
+
 function updateParticles(dtSeconds: number) {
   const now = performance.now();
   for (let i = activeParticles.length - 1; i >= 0; i--) {
@@ -1521,6 +1692,9 @@ function pullPetal(petal: HTMLElement) {
     const wp2Target = wp2Pos.clone().add(new THREE.Vector3(-0.311, -0.418, 0.854));
 
     // Keep the 2D flower visible during the cinematic so the petal-less flower stays on screen
+    
+    // Start the pink character walking sequence
+    startPinkCharacterSequence();
 
     const newRoundBtn = document.getElementById('new-round-btn')! as HTMLButtonElement;
     startCameraFlight([
@@ -1548,6 +1722,9 @@ function resetGame() {
     scene.remove(p.mesh);
   }
   activeParticles = [];
+  
+  // Clean up pink character if it exists
+  removePinkCharacter();
   
   // Random number of petals
   totalPetals = 6 + Math.floor(Math.random() * 5); // Random 6-10 petals
@@ -1709,6 +1886,59 @@ function animate() {
     cg.position.x += (cg.userData.speed || 0.2) * 0.18;
     cg.position.y += Math.sin(t * 0.5) * 0.002 * (cg.userData.amp || 2.5);
     if (cg.position.x > 100) cg.position.x = -100;
+  }
+  
+  // Animate pink character
+  if (pinkCharacter) {
+    if (isPinkCharacterWalking) {
+      const walkElapsed = nowMs - pinkWalkStartTime;
+      const walkProgress = Math.min(1, walkElapsed / pinkWalkDuration);
+      
+      // Walk from z=40 to z=20 (stop before reaching castle)
+      pinkCharacter.position.z = 40 - (walkProgress * 20);
+      
+      // Walking animation: bob up and down, swing legs
+      pinkCharacter.position.y = 4 + Math.sin(walkElapsed * 0.008) * 0.15;
+      
+      // Animate legs
+      const leftLeg = pinkCharacter.getObjectByName('leftLeg') as THREE.Group;
+      const rightLeg = pinkCharacter.getObjectByName('rightLeg') as THREE.Group;
+      if (leftLeg && rightLeg) {
+        leftLeg.rotation.x = Math.sin(walkElapsed * 0.008) * 0.3;
+        rightLeg.rotation.x = -Math.sin(walkElapsed * 0.008) * 0.3;
+      }
+      
+      if (walkProgress >= 1) {
+        // Finished walking, start waving
+        isPinkCharacterWalking = false;
+        isPinkCharacterWaving = true;
+        pinkWaveStartTime = nowMs;
+      }
+    } else if (isPinkCharacterWaving) {
+      const waveElapsed = nowMs - pinkWaveStartTime;
+      const waveProgress = waveElapsed / pinkWaveDuration;
+      
+      // Wave animation
+      const leftArm = pinkCharacter.getObjectByName('leftArm') as THREE.Group;
+      if (leftArm) {
+        // Raise arm and wave
+        leftArm.rotation.z = -Math.PI / 3 + Math.sin(waveElapsed * 0.005) * 0.3;
+        leftArm.rotation.x = Math.sin(waveElapsed * 0.01) * 0.2;
+      }
+      
+      // Subtle body movement while waving
+      pinkCharacter.rotation.y = Math.PI + Math.sin(waveElapsed * 0.002) * 0.1;
+      
+      if (waveProgress >= 1) {
+        // Done waving, just keep standing there
+        isPinkCharacterWaving = false;
+        // Keep subtle idle animation
+        pinkCharacter.position.y = 4 + Math.sin(t * 2.0) * 0.08;
+      }
+    } else {
+      // Idle animation when not walking or waving
+      pinkCharacter.position.y = 4 + Math.sin(t * 2.0) * 0.08;
+    }
   }
   
   // Update camera info
