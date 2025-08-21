@@ -12,6 +12,7 @@ let flowerContainer: HTMLDivElement;
 
 let crushName: string | null = null;
 let letterOverlay: HTMLDivElement | null = null;
+let cameraInfoVisible = false;
 
 // Scene object refs for animation
 let yoshiHeadGroup: THREE.Group;
@@ -1342,6 +1343,7 @@ function createUI() {
   const cameraInfo = document.createElement('div');
   cameraInfo.className = 'camera-info';
   cameraInfo.id = 'camera-info';
+  cameraInfo.style.display = 'none';
   document.body.appendChild(cameraInfo);
   
   // Create 2D flower
@@ -1509,6 +1511,17 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// Toggle camera info with 'm' key, but ignore when typing in inputs/textarea
+window.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.key.toLowerCase() === 'm') {
+    const active = document.activeElement as HTMLElement | null;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+    cameraInfoVisible = !cameraInfoVisible;
+    const div = document.getElementById('camera-info');
+    if (div) div.style.display = cameraInfoVisible ? 'block' : 'none';
+  }
+});
+
 // Initialize UI
 createUI();
 createLoveLetterOverlay();
@@ -1517,6 +1530,7 @@ createLoveLetterOverlay();
 function updateCameraInfo() {
   const cameraInfo = document.getElementById('camera-info');
   if (cameraInfo) {
+    if (!cameraInfoVisible) return; // skip updates when hidden
     // Get look vector (direction camera is facing)
     const lookVector = new THREE.Vector3(0, 0, -1);
     lookVector.applyQuaternion(camera.quaternion);
