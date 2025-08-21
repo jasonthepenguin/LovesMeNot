@@ -201,6 +201,82 @@ camera.lookAt(lookTarget);
 controls.target.copy(lookTarget);
 controls.update();
 
+// Save initial camera state to return to after round-end sequence
+const initialCameraPosition = camera.position.clone();
+const initialLookTarget = controls.target.clone();
+
+// --- Camera flight (round-end sequence) ---
+type CameraWaypoint = { position: THREE.Vector3; target: THREE.Vector3 };
+let isCameraFlying = false;
+let camFromPos = new THREE.Vector3();
+let camFromTarget = new THREE.Vector3();
+let camToPos = new THREE.Vector3();
+let camToTarget = new THREE.Vector3();
+let camSegStartMs = 0;
+let camSegDurationMs = 0;
+let camSegmentIndex = 0;
+let camWaypoints: CameraWaypoint[] = [];
+let camSegmentDurations: number[] = [];
+let onCameraFlightComplete: (() => void) | null = null;
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function advanceCameraSegment() {
+  camSegmentIndex++;
+  if (camSegmentIndex >= camWaypoints.length) {
+    isCameraFlying = false;
+    if (onCameraFlightComplete) onCameraFlightComplete();
+    return;
+  }
+  const targetWp = camWaypoints[camSegmentIndex];
+  camFromPos.copy(camera.position);
+  camFromTarget.copy(controls.target);
+  camToPos.copy(targetWp.position);
+  camToTarget.copy(targetWp.target);
+  camSegDurationMs = camSegmentDurations[camSegmentIndex] || 1500;
+  camSegStartMs = performance.now();
+}
+
+function startCameraFlight(waypoints: CameraWaypoint[], durationPerSegmentMs = 1800, onComplete?: () => void) {
+  if (!waypoints || waypoints.length === 0) return;
+  isCameraFlying = true;
+  controls.enabled = false;
+  onCameraFlightComplete = onComplete || null;
+  camWaypoints = waypoints.slice();
+  camSegmentDurations = new Array(camWaypoints.length).fill(durationPerSegmentMs);
+  camSegmentIndex = -1;
+  advanceCameraSegment();
+}
+
+function updateCameraFlight(nowMs: number) {
+  if (!isCameraFlying) return;
+  const t = Math.min(1, (nowMs - camSegStartMs) / camSegDurationMs);
+  const et = easeInOutCubic(t);
+  const curPos = new THREE.Vector3().lerpVectors(camFromPos, camToPos, et);
+  const curTarget = new THREE.Vector3().lerpVectors(camFromTarget, camToTarget, et);
+  camera.position.copy(curPos);
+  camera.lookAt(curTarget);
+  controls.target.copy(curTarget);
+
+  if (t >= 1) {
+    camera.position.copy(camToPos);
+    camera.lookAt(camToTarget);
+    controls.target.copy(camToTarget);
+    advanceCameraSegment();
+  }
+}
+
+function returnCameraToInitialPosition(onComplete?: () => void) {
+  const wp: CameraWaypoint = { position: initialCameraPosition.clone(), target: initialLookTarget.clone() };
+  startCameraFlight([wp], 1600, () => {
+    controls.enabled = true;
+    controls.update();
+    if (onComplete) onComplete();
+  });
+}
+
 // Gentle atmospheric fog
 scene.fog = new THREE.Fog(0xffccaa, 80, 220);
 
@@ -1264,13 +1340,16 @@ function createUI() {
   newRoundBtn.style.display = 'none';
   newRoundBtn.addEventListener('click', () => {
     newRoundBtn.style.display = 'none';
-    flowerContainer.style.display = 'block';
-    flowerContainer.classList.remove('fade-out');
-    flowerContainer.classList.add('fade-in');
-    resetGame();
-    setTimeout(() => {
-      flowerContainer.classList.remove('fade-in');
-    }, 500);
+    // Fly back to initial camera, then reset and show flower
+    returnCameraToInitialPosition(() => {
+      flowerContainer.style.display = 'block';
+      flowerContainer.classList.remove('fade-out');
+      flowerContainer.classList.add('fade-in');
+      resetGame();
+      setTimeout(() => {
+        flowerContainer.classList.remove('fade-in');
+      }, 500);
+    });
   });
   document.body.appendChild(newRoundBtn);
 
@@ -1355,12 +1434,27 @@ function pullPetal(petal: HTMLElement) {
     // Trigger particles and yoshi emotion
     triggerRoundEndEffects(lovesMe);
     
-    // Hide flower and show new round button after delay
-    setTimeout(() => {
-      flowerContainer.style.display = 'none';
-      const newRoundBtn = document.getElementById('new-round-btn')!;
-      newRoundBtn.style.display = 'block';
-    }, 3000);
+    // Start camera tour across provided waypoints; then wait 3s and show button
+    // Waypoint 1 from screenshot: Pos (-16.47, 22.86, 9.69), Look (0.863, -0.506, -0.007)
+    const wp1Pos = new THREE.Vector3(-16.47, 22.86, 9.69);
+    const wp1Target = wp1Pos.clone().add(new THREE.Vector3(0.863, -0.506, -0.007));
+    // Waypoint 2: Pos (2.73, 21.67, -5.64), Look (-0.311, -0.418, 0.854)
+    const wp2Pos = new THREE.Vector3(2.73, 21.67, -5.64);
+    const wp2Target = wp2Pos.clone().add(new THREE.Vector3(-0.311, -0.418, 0.854));
+
+    // Hide flower during cinematic
+    flowerContainer.style.display = 'none';
+
+    const newRoundBtn = document.getElementById('new-round-btn')! as HTMLButtonElement;
+    startCameraFlight([
+      { position: wp1Pos, target: wp1Target },
+      { position: wp2Pos, target: wp2Target },
+    ], 1800, () => {
+      // After flight completes, pause for 3 seconds before showing the button
+      setTimeout(() => {
+        newRoundBtn.style.display = 'block';
+      }, 3000);
+    });
   } else {
     statusText.textContent = lovesMe ? 'Loves me!' : 'Loves me not...';
   }
@@ -1530,6 +1624,8 @@ function animate() {
   
   // Update camera info
   updateCameraInfo();
+  // Update camera flight if active
+  updateCameraFlight(nowMs);
   
   controls.update();
   renderer.render(scene, camera);
