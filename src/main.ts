@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import './style.css';
+import * as Tone from 'tone';
 
 // Game state
 let currentPetal = 0;
@@ -41,6 +42,117 @@ let yoshiEmotion: 'neutral' | 'happy' | 'sad' = 'neutral';
 let emotionEndTimeMs = 0;
 let lastFrameTimeMs = performance.now();
 const BILLBOARD_Z_AXIS = new THREE.Vector3(0, 0, 1);
+
+// --- Soothing background music (Tone.js) ---
+let musicInitialized = false;
+let padSynth: Tone.PolySynth | null = null;
+let arpSynth: Tone.Synth | null = null;
+let freeverb: Tone.Freeverb | null = null;
+let chorus: Tone.Chorus | null = null;
+let lowpass: Tone.Filter | null = null;
+let mainVolume: Tone.Volume | null = null;
+let padSeq: Tone.Sequence | null = null;
+let arpLoop: Tone.Loop | null = null;
+let currentChord: string[] = ['C4', 'E4', 'G4', 'B4'];
+let arpIndex = 0;
+let musicToggleBtn: HTMLButtonElement | null = null;
+let autoStartArmed = false;
+
+async function startBackgroundMusic(): Promise<void> {
+  // Ensure audio context is unlocked by a user gesture
+  await Tone.start().catch(() => {});
+  if (musicInitialized) {
+    if (Tone.Transport.state !== 'started') Tone.Transport.start();
+    // Quick unmute ramp
+    if (mainVolume) {
+      mainVolume.volume.cancelScheduledValues(Tone.now());
+      mainVolume.volume.rampTo(-30, 0.25);
+    }
+    if (musicToggleBtn) musicToggleBtn.textContent = 'Music: On';
+    return;
+  }
+
+  Tone.Transport.bpm.value = 70;
+  Tone.Transport.swing = 0.15;
+  Tone.Transport.swingSubdivision = '8n';
+
+  // Lower overall output; this is the base level, then we ramp in
+  mainVolume = new Tone.Volume(-36).toDestination();
+  chorus = new Tone.Chorus({ frequency: 0.18, delayTime: 2.5, depth: 0.3, feedback: 0.1, wet: 0.35 }).start();
+  freeverb = new Tone.Freeverb({ roomSize: 0.8, dampening: 2800, wet: 0.35 });
+  lowpass = new Tone.Filter({ type: 'lowpass', frequency: 8500, rolloff: -24, Q: 0.3 });
+
+  padSynth = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: 'sine' },
+    envelope: { attack: 2.5, decay: 1.2, sustain: 0.7, release: 4.5 },
+    volume: -10,
+  });
+  arpSynth = new Tone.Synth({
+    oscillator: { type: 'triangle' },
+    envelope: { attack: 0.03, decay: 0.2, sustain: 0.15, release: 0.9 },
+    portamento: 0.01,
+    volume: -20,
+  });
+
+  padSynth.chain(chorus, freeverb, lowpass, mainVolume);
+  arpSynth.chain(freeverb, mainVolume);
+
+  const chords: Array<string[]> = [
+    ['C4', 'E4', 'G4', 'B4'],  // Cmaj7
+    ['G3', 'B3', 'D4', 'F4'],  // G7 (avoid harsh leading tone)
+    ['A3', 'C4', 'E4', 'G4'],  // Am7
+    ['F3', 'A3', 'C4', 'E4'],  // Fmaj7
+  ];
+  currentChord = chords[0];
+
+  padSeq = new Tone.Sequence((time, chord: any) => {
+    currentChord = chord as string[];
+    padSynth?.triggerAttackRelease(currentChord, '2m', time, 0.6);
+  }, chords, '2m');
+  padSeq.start(0);
+
+  arpIndex = 0;
+  arpLoop = new Tone.Loop((time) => {
+    const note = currentChord[arpIndex % currentChord.length];
+    const arpNote = Tone.Frequency(note).transpose(12).toNote();
+    arpSynth?.triggerAttackRelease(arpNote, '8n', time, 0.18);
+    arpIndex++;
+  }, '8n');
+  arpLoop.start(0);
+
+  musicInitialized = true;
+  Tone.Transport.start();
+  // Gentle fade-in to a quieter target
+  if (mainVolume) mainVolume.volume.rampTo(-30, 2.5);
+  if (musicToggleBtn) musicToggleBtn.textContent = 'Music: On';
+}
+
+function pauseBackgroundMusicImmediately(): void {
+  // Stop scheduling and silence quickly
+  Tone.Transport.pause();
+  try { padSynth?.releaseAll?.(); } catch {}
+  if (mainVolume) {
+    mainVolume.volume.cancelScheduledValues(Tone.now());
+    mainVolume.volume.rampTo(-60, 0.05);
+  }
+  if (musicToggleBtn) musicToggleBtn.textContent = 'Music: Off';
+}
+
+function setupAutoMusicStart(): void {
+  if (autoStartArmed) return;
+  autoStartArmed = true;
+  const handler = async () => {
+    if (!autoStartArmed) return;
+    autoStartArmed = false;
+    document.removeEventListener('pointerdown', handler);
+    document.removeEventListener('keydown', handler);
+    document.removeEventListener('touchstart', handler);
+    await startBackgroundMusic();
+  };
+  document.addEventListener('pointerdown', handler);
+  document.addEventListener('keydown', handler);
+  document.addEventListener('touchstart', handler);
+}
 
 // 3D flower held by character
 let heldFlowerRoot: THREE.Group | null = null;
@@ -1135,6 +1247,24 @@ function createUI() {
     }, 500);
   });
   document.body.appendChild(newRoundBtn);
+
+  // Music toggle (explicit user control; default Off)
+  const musicToggle = document.createElement('button');
+  musicToggle.id = 'music-toggle';
+  musicToggle.textContent = 'Music: Off';
+  musicToggleBtn = musicToggle;
+  // Prevent auto-start handler from triggering when using this button
+  musicToggle.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+  musicToggle.addEventListener('touchstart', (ev) => ev.stopPropagation());
+  musicToggle.addEventListener('click', async () => {
+    if (Tone.Transport.state !== 'started') {
+      await startBackgroundMusic();
+      musicToggle.textContent = 'Music: On';
+    } else {
+      pauseBackgroundMusicImmediately();
+    }
+  });
+  document.body.appendChild(musicToggle);
 }
 
 // Intro overlay: romantic letter asking for crush's name
@@ -1173,6 +1303,8 @@ function createLoveLetterOverlay() {
   btn?.addEventListener('click', begin);
   input?.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Enter') begin(); });
   setTimeout(() => input?.focus(), 0);
+  // Arm auto-start after overlay shows so the first site interaction starts music
+  setupAutoMusicStart();
 }
 
 function pullPetal(petal: HTMLElement) {

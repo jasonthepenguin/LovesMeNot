@@ -107,6 +107,38 @@ canvas {
   transform: translateX(-50%) scale(0.95);
 }
 
+/* Music toggle */
+#music-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  /* Ensure not under mobile notches */
+  top: calc(20px + env(safe-area-inset-top));
+  right: calc(20px + env(safe-area-inset-right));
+  z-index: 1200;
+  background: rgba(0, 0, 0, 0.35);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.3s ease;
+}
+
+#music-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.55);
+}
+
+#music-toggle:active {
+  transform: translateY(0);
+  background: rgba(0, 0, 0, 0.45);
+}
+
 /* 2D Flower UI */
 .flower-container {
   position: absolute;
