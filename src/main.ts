@@ -1102,17 +1102,20 @@ function emitHeartsBurst(count = 18) {
   const origin = getYoshiHeadWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.6, 0));
   for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const speed = 0.8 + Math.random() * 1.2;
-    const vx = Math.cos(angle) * 0.35;
-    const vz = Math.sin(angle) * 0.35;
+    // Slightly faster and wider spread
+    const speed = 1.0 + Math.random() * 1.4;
+    const vx = Math.cos(angle) * 0.45;
+    const vz = Math.sin(angle) * 0.45;
     const vy = 1.2 + Math.random() * 1.1;
     spawnHeartParticle({
       color: 0xff4da6,
-      origin: origin.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.4, (Math.random()) * 0.2, (Math.random() - 0.5) * 0.4)),
+      // Slightly larger spawn radius for a more dispersed feel
+      origin: origin.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.6, (Math.random()) * 0.25, (Math.random() - 0.5) * 0.6)),
       velocity: new THREE.Vector3(vx * speed, vy, vz * speed),
       lifeTimeMs: 2200 + Math.random() * 600,
-      startScale: 0.45 + Math.random() * 0.15,
-      endScale: 0.20 + Math.random() * 0.08,
+      // Make hearts a bit larger overall
+      startScale: 0.60 + Math.random() * 0.20,
+      endScale: 0.26 + Math.random() * 0.12,
       accelY: -0.35,
     });
   }
