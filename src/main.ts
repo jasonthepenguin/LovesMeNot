@@ -490,23 +490,35 @@ function createPinkCharacter() {
   // Simple arms (for waving)
   const armGeometry = new THREE.CylinderGeometry(0.35, 0.4, 2.2, 8);
   const armMaterial = new THREE.MeshPhongMaterial({ color: 0xff88bb });
+  const handGeometry = new THREE.SphereGeometry(0.45, 8, 8);
+  const handMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
   
   // Left arm (will be animated for waving)
   const leftArmGroup = new THREE.Group();
-  leftArmGroup.position.set(-1.6, 2.3, 0.2);
+  leftArmGroup.position.set(-1.6, 2.8, 0.2);
   group.add(leftArmGroup);
   const leftArm = new THREE.Mesh(armGeometry, armMaterial);
   leftArm.position.y = -1.1;
   leftArm.rotation.z = Math.PI / 8;
   leftArmGroup.add(leftArm);
+  // Add hand at end of arm
+  const leftHand = new THREE.Mesh(handGeometry, handMaterial);
+  leftHand.position.set(0, -2.2, 0);
+  leftArmGroup.add(leftHand);
   // Store reference for wave animation
   leftArmGroup.name = 'leftArm';
   
   // Right arm
+  const rightArmGroup = new THREE.Group();
+  rightArmGroup.position.set(1.6, 2.8, 0.2);
+  group.add(rightArmGroup);
   const rightArm = new THREE.Mesh(armGeometry, armMaterial);
-  rightArm.position.set(1.6, 1.2, 0.2);
+  rightArm.position.y = -1.1;
   rightArm.rotation.z = -Math.PI / 8;
-  group.add(rightArm);
+  rightArmGroup.add(rightArm);
+  const rightHand = new THREE.Mesh(handGeometry, handMaterial);
+  rightHand.position.set(0, -2.2, 0);
+  rightArmGroup.add(rightHand);
   
   // Legs (standing/walking position)
   const legGeometry = new THREE.CylinderGeometry(0.45, 0.5, 2.5, 8);
@@ -1916,25 +1928,20 @@ function animate() {
       }
     } else if (isPinkCharacterWaving) {
       const waveElapsed = nowMs - pinkWaveStartTime;
-      const waveProgress = waveElapsed / pinkWaveDuration;
       
-      // Wave animation
+      // Continuous wave animation (no longer stops)
       const leftArm = pinkCharacter.getObjectByName('leftArm') as THREE.Group;
       if (leftArm) {
-        // Raise arm and wave
-        leftArm.rotation.z = -Math.PI / 3 + Math.sin(waveElapsed * 0.005) * 0.3;
-        leftArm.rotation.x = Math.sin(waveElapsed * 0.01) * 0.2;
+        // Raise arm straight up above head and wave
+        leftArm.rotation.z = -Math.PI + Math.sin(waveElapsed * 0.006) * 0.25; // Arm pointing up with wave motion
+        leftArm.rotation.x = 0; // Keep facing forward
+        leftArm.rotation.y = Math.sin(waveElapsed * 0.008) * 0.15; // Slight side-to-side
       }
       
       // Subtle body movement while waving
       pinkCharacter.rotation.y = Math.PI + Math.sin(waveElapsed * 0.002) * 0.1;
-      
-      if (waveProgress >= 1) {
-        // Done waving, just keep standing there
-        isPinkCharacterWaving = false;
-        // Keep subtle idle animation
-        pinkCharacter.position.y = 4 + Math.sin(t * 2.0) * 0.08;
-      }
+      // Keep the bobbing animation while waving
+      pinkCharacter.position.y = 4 + Math.sin(t * 2.0) * 0.08;
     } else {
       // Idle animation when not walking or waving
       pinkCharacter.position.y = 4 + Math.sin(t * 2.0) * 0.08;
