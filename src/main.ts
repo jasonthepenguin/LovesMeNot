@@ -38,6 +38,8 @@ let pinkWalkDuration = 6000; // ms to walk across bridge (longer for more distan
 let pinkWalkAwayDuration = 20000; // ms to walk away into distance (doubled for double distance)
 let pinkWaveStartTime = 0;
 let isLoveOutcome = true; // Track if the outcome was positive
+// Pink nametag
+let pinkNametagSprite: THREE.Sprite | null = null;
 
 // Particles and emotion state
 let activeParticles: Array<{
@@ -1448,6 +1450,103 @@ function showSadEmojiOverlay() {
   setTimeout(() => overlay.remove(), 2600);
 }
 
+// --- Pink character nametag helpers ---
+function createRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const min = Math.min(w, h);
+  const radius = Math.min(r, min / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+}
+
+function buildNametagTexture(text: string): { texture: THREE.Texture; width: number; height: number } {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d')!;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+
+  // Style roughly matching .status-text
+  const fontSizePx = 40; // base size; sprite scale will adjust world size
+  const font = `700 ${fontSizePx}px "Comic Sans MS", cursive, sans-serif`;
+  ctx.font = font;
+  const metrics = ctx.measureText(text);
+  const textWidth = Math.ceil(metrics.width);
+  const textHeight = Math.ceil(fontSizePx * 1.2);
+  const padX = 28;
+  const padY = 16;
+  const radius = 14;
+
+  const cw = (textWidth + padX * 2);
+  const ch = (textHeight + padY * 2);
+  canvas.width = Math.ceil(cw * dpr);
+  canvas.height = Math.ceil(ch * dpr);
+  ctx.scale(dpr, dpr);
+
+  // Background rounded rect (translucent black)
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  createRoundedRect(ctx, 0, 0, cw, ch, radius);
+  ctx.fill();
+
+  // Text with subtle shadow for readability
+  ctx.fillStyle = '#ffffff';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.font = font;
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 2;
+  ctx.fillText(text, cw / 2, ch / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  // @ts-ignore
+  if ('SRGBColorSpace' in THREE) (texture as any).colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
+
+  return { texture, width: cw, height: ch };
+}
+
+function ensurePinkNametag(label: string) {
+  const nameText = (label || 'Your Crush').trim();
+  const built = buildNametagTexture(nameText);
+  const aspect = built.width / built.height;
+  const worldHeight = 1.4; // world units
+  const worldWidth = worldHeight * aspect;
+
+  if (!pinkNametagSprite) {
+    const material = new THREE.SpriteMaterial({ map: built.texture, transparent: true, depthWrite: false, depthTest: false });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(worldWidth, worldHeight, 1);
+    // Position above head in local space
+    sprite.position.set(0, 6.6, 0);
+    pinkNametagSprite = sprite;
+    if (pinkCharacter) pinkCharacter.add(sprite);
+  } else {
+    const mat = pinkNametagSprite.material as THREE.SpriteMaterial;
+    if (mat.map) mat.map.dispose();
+    mat.map = built.texture;
+    mat.opacity = 1;
+    pinkNametagSprite.scale.set(worldWidth, worldHeight, 1);
+    mat.needsUpdate = true;
+  }
+}
+
+function removePinkNametag() {
+  if (pinkNametagSprite) {
+    if (pinkNametagSprite.parent) pinkNametagSprite.parent.remove(pinkNametagSprite);
+    const mat = pinkNametagSprite.material as THREE.SpriteMaterial;
+    if (mat.map) mat.map.dispose();
+    mat.dispose();
+    pinkNametagSprite = null;
+  }
+}
+
 // Start pink character walk and wave animation
 function startPinkCharacterSequence(lovesMe: boolean) {
   isLoveOutcome = lovesMe;
@@ -1484,6 +1583,8 @@ function startPinkCharacterSequence(lovesMe: boolean) {
   
   pinkWalkStartTime = performance.now();
   pinkCharacter.visible = true;
+  // Add/update nametag above the head
+  ensurePinkNametag(crushName || 'Your Crush');
 }
 
 // Clean up pink character after sequence
@@ -1492,6 +1593,7 @@ function removePinkCharacter() {
     scene.remove(pinkCharacter);
     pinkCharacter = null;
   }
+  removePinkNametag();
   isPinkCharacterWalking = false;
   isPinkCharacterWaving = false;
   isPinkCharacterWalkingAway = false;
@@ -1983,6 +2085,11 @@ function animate() {
             mat.needsUpdate = true;
           }
         });
+        if (pinkNametagSprite) {
+          const mat = pinkNametagSprite.material as THREE.SpriteMaterial;
+          mat.opacity = opacity;
+          mat.needsUpdate = true;
+        }
       }
     } else if (isPinkCharacterWaving) {
       const waveElapsed = nowMs - pinkWaveStartTime;
