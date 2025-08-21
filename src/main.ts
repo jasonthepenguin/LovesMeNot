@@ -1476,8 +1476,7 @@ function pullPetal(petal: HTMLElement) {
     const wp2Pos = new THREE.Vector3(2.73, 21.67, -5.64);
     const wp2Target = wp2Pos.clone().add(new THREE.Vector3(-0.311, -0.418, 0.854));
 
-    // Hide flower during cinematic
-    flowerContainer.style.display = 'none';
+    // Keep the 2D flower visible during the cinematic so the petal-less flower stays on screen
 
     const newRoundBtn = document.getElementById('new-round-btn')! as HTMLButtonElement;
     startCameraFlight([
