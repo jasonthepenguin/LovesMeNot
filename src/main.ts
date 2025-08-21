@@ -269,8 +269,22 @@ function updateCameraFlight(nowMs: number) {
 }
 
 function returnCameraToInitialPosition(onComplete?: () => void) {
-  const wp: CameraWaypoint = { position: initialCameraPosition.clone(), target: initialLookTarget.clone() };
-  startCameraFlight([wp], 1600, () => {
+  // Build a gentle two-segment path back using a raised, slightly side-offset midpoint
+  const curPos = camera.position.clone();
+  const curTarget = controls.target.clone();
+  const midPos = curPos.clone().lerp(initialCameraPosition, 0.5);
+  midPos.y += 1.4; // subtle lift for an arc
+  const pathDir = new THREE.Vector3().subVectors(initialCameraPosition, curPos).normalize();
+  const side = new THREE.Vector3().crossVectors(pathDir, new THREE.Vector3(0, 1, 0)).normalize();
+  if (isFinite(side.lengthSq()) && side.lengthSq() > 1e-6) {
+    midPos.addScaledVector(side, 1.2);
+  }
+  const midTarget = curTarget.clone().lerp(initialLookTarget, 0.5);
+  const endWp: CameraWaypoint = { position: initialCameraPosition.clone(), target: initialLookTarget.clone() };
+  startCameraFlight([
+    { position: midPos, target: midTarget },
+    endWp,
+  ], 1400, () => {
     controls.enabled = true;
     controls.update();
     if (onComplete) onComplete();
