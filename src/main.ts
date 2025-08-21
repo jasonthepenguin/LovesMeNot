@@ -41,6 +41,9 @@ let isLoveOutcome = true; // Track if the outcome was positive
 // Pink nametag
 let pinkNametagSprite: THREE.Sprite | null = null;
 
+// Corner letter element ref
+let cornerLetterEl: HTMLDivElement | null = null;
+
 // Particles and emotion state
 let activeParticles: Array<{
   mesh: THREE.Mesh;
@@ -1450,6 +1453,35 @@ function showSadEmojiOverlay() {
   setTimeout(() => overlay.remove(), 2600);
 }
 
+// --- Bottom-left corner letter helpers ---
+function ensureCornerLetter(): HTMLDivElement {
+  if (cornerLetterEl && document.body.contains(cornerLetterEl)) return cornerLetterEl;
+  const el = document.createElement('div');
+  el.className = 'corner-letter';
+  el.id = 'corner-letter';
+  document.body.appendChild(el);
+  cornerLetterEl = el;
+  return el;
+}
+
+function showCornerLetter(bodyText: string) {
+  const el = ensureCornerLetter();
+  const words = (bodyText || '').trim().split(/\s+/).filter(Boolean);
+  const bodyLines: string[] = [];
+  for (let i = 0; i < words.length; i += 4) {
+    bodyLines.push(words.slice(i, i + 4).join(' '));
+  }
+  const html = `Hey anon,<br><br>${bodyLines.join('<br>')}<br><br>-Love JB`;
+  el.innerHTML = html;
+}
+
+function hideCornerLetter() {
+  if (cornerLetterEl) {
+    cornerLetterEl.remove();
+    cornerLetterEl = null;
+  }
+}
+
 // --- Pink character nametag helpers ---
 function createRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   const min = Math.min(w, h);
@@ -1686,6 +1718,7 @@ function createUI() {
   newRoundBtn.style.display = 'none';
   newRoundBtn.addEventListener('click', () => {
     newRoundBtn.style.display = 'none';
+    hideCornerLetter();
     // Fly back to initial camera, then reset and show flower
     returnCameraToInitialPosition(() => {
       flowerContainer.style.display = 'block';
@@ -1839,7 +1872,11 @@ function pullPetal(petal: HTMLElement) {
       { position: wp1Pos, target: wp1Target },
       { position: wp2Pos, target: wp2Target },
     ], 1800, () => {
-      // After flight completes, pause for 3 seconds before showing the button
+      // Show note immediately upon arriving at final camera position
+      const loveMsg = 'Go for it, at the end of the day we are all just trying our best.';
+      const notMsg = 'it’s important to know when to stay and fight, but even more important to know when to let go.';
+      showCornerLetter(lovesMe ? loveMsg : notMsg);
+      // Show the Try Again button a bit later
       setTimeout(() => {
         newRoundBtn.style.display = 'block';
       }, 3000);
@@ -1855,6 +1892,8 @@ function resetGame() {
   lovesMe = true;
   yoshiEmotion = 'neutral';
   emotionEndTimeMs = 0;
+  // Remove any lingering corner letter
+  hideCornerLetter();
   // Clear particles
   for (const p of activeParticles) {
     scene.remove(p.mesh);
