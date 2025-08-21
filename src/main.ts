@@ -32,9 +32,12 @@ let pinkCharacter: THREE.Group | null = null;
 let pinkCharacterMixer: THREE.AnimationMixer | null = null;
 let isPinkCharacterWalking = false;
 let isPinkCharacterWaving = false;
+let isPinkCharacterWalkingAway = false;
 let pinkWalkStartTime = 0;
 let pinkWalkDuration = 6000; // ms to walk across bridge (longer for more distance)
+let pinkWalkAwayDuration = 10000; // ms to walk away into distance
 let pinkWaveStartTime = 0;
+let isLoveOutcome = true; // Track if the outcome was positive
 
 // Particles and emotion state
 let activeParticles: Array<{
@@ -1446,18 +1449,30 @@ function showSadEmojiOverlay() {
 }
 
 // Start pink character walk and wave animation
-function startPinkCharacterSequence() {
+function startPinkCharacterSequence(lovesMe: boolean) {
+  isLoveOutcome = lovesMe;
+  
   if (!pinkCharacter) {
     pinkCharacter = createPinkCharacter();
-    // Start position: much further back for longer walk
-    pinkCharacter.position.set(0, 4, 55);
-    pinkCharacter.rotation.y = Math.PI; // Face toward castle
     scene.add(pinkCharacter);
   }
   
-  // Reset animation state
-  isPinkCharacterWalking = true;
-  isPinkCharacterWaving = false;
+  if (lovesMe) {
+    // Walk toward the castle and wave
+    pinkCharacter.position.set(0, 4, 55);
+    pinkCharacter.rotation.y = Math.PI; // Face toward castle
+    isPinkCharacterWalking = true;
+    isPinkCharacterWaving = false;
+    isPinkCharacterWalkingAway = false;
+  } else {
+    // Start closer and walk away
+    pinkCharacter.position.set(0, 4, 25);
+    pinkCharacter.rotation.y = 0; // Face away from castle
+    isPinkCharacterWalking = false;
+    isPinkCharacterWaving = false;
+    isPinkCharacterWalkingAway = true;
+  }
+  
   pinkWalkStartTime = performance.now();
   pinkCharacter.visible = true;
 }
@@ -1470,6 +1485,7 @@ function removePinkCharacter() {
   }
   isPinkCharacterWalking = false;
   isPinkCharacterWaving = false;
+  isPinkCharacterWalkingAway = false;
 }
 
 function updateParticles(dtSeconds: number) {
@@ -1704,8 +1720,8 @@ function pullPetal(petal: HTMLElement) {
 
     // Keep the 2D flower visible during the cinematic so the petal-less flower stays on screen
     
-    // Start the pink character walking sequence
-    startPinkCharacterSequence();
+    // Start the pink character walking sequence (pass lovesMe to determine behavior)
+    startPinkCharacterSequence(lovesMe);
 
     const newRoundBtn = document.getElementById('new-round-btn')! as HTMLButtonElement;
     startCameraFlight([
@@ -1924,6 +1940,35 @@ function animate() {
         isPinkCharacterWalking = false;
         isPinkCharacterWaving = true;
         pinkWaveStartTime = nowMs;
+      }
+    } else if (isPinkCharacterWalkingAway) {
+      const walkElapsed = nowMs - pinkWalkStartTime;
+      const walkProgress = Math.min(1, walkElapsed / pinkWalkAwayDuration);
+      
+      // Walk away from z=25 to z=80 (far into the distance)
+      pinkCharacter.position.z = 25 + (walkProgress * 55);
+      
+      // Walking animation: bob up and down, swing legs
+      pinkCharacter.position.y = 4 + Math.sin(walkElapsed * 0.008) * 0.15;
+      
+      // Animate legs
+      const leftLeg = pinkCharacter.getObjectByName('leftLeg') as THREE.Group;
+      const rightLeg = pinkCharacter.getObjectByName('rightLeg') as THREE.Group;
+      if (leftLeg && rightLeg) {
+        leftLeg.rotation.x = Math.sin(walkElapsed * 0.008) * 0.3;
+        rightLeg.rotation.x = -Math.sin(walkElapsed * 0.008) * 0.3;
+      }
+      
+      // Fade out as they walk away
+      if (walkProgress > 0.7) {
+        const fadeProgress = (walkProgress - 0.7) / 0.3;
+        pinkCharacter.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            const mat = child.material as THREE.MeshPhongMaterial;
+            mat.transparent = true;
+            mat.opacity = 1 - fadeProgress;
+          }
+        });
       }
     } else if (isPinkCharacterWaving) {
       const waveElapsed = nowMs - pinkWaveStartTime;
