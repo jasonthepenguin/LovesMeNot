@@ -5,7 +5,7 @@ import * as Tone from 'tone';
 
 // Game state
 let currentPetal = 0;
-let totalPetals = 8;
+let totalPetals = 6 + Math.floor(Math.random() * 5); // 6–10 for varied first outcome
 let lovesMe = true;
 let statusText: HTMLDivElement;
 let flowerContainer: HTMLDivElement;
