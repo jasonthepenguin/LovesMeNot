@@ -1152,7 +1152,30 @@ function triggerRoundEndEffects(isHappy: boolean) {
     emitSadBurst(18);
     setTimeout(() => emitSadBurst(12), 180);
     setTimeout(() => emitSadBurst(10), 360);
+    // Add a brief sad emoji overlay on loss
+    showSadEmojiOverlay();
   }
+}
+
+// Brief overlay of sad emojis when losing
+function showSadEmojiOverlay() {
+  const overlay = document.createElement('div');
+  overlay.className = 'sad-emoji-overlay';
+  const emojis = ['🥺', '😢', '💔', '🥺', '😢'];
+  for (let i = 0; i < emojis.length; i++) {
+    const span = document.createElement('span');
+    span.className = 'sad-emoji';
+    span.textContent = emojis[i];
+    const xPct = 45 + Math.random() * 10; // 45%..55%
+    const yPct = 58 + Math.random() * 8;  // 58%..66%
+    span.style.left = `${xPct}%`;
+    span.style.top = `${yPct}%`;
+    span.style.fontSize = `${38 + Math.random() * 18}px`;
+    span.style.animationDelay = `${i * 0.15 + Math.random() * 0.1}s`;
+    overlay.appendChild(span);
+  }
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.remove(), 2600);
 }
 
 function updateParticles(dtSeconds: number) {
@@ -1327,7 +1350,7 @@ function pullPetal(petal: HTMLElement) {
   // Update status text
   if (currentPetal === totalPetals) {
     const nameForMsg = crushName || 'Your Crush';
-    statusText.textContent = lovesMe ? `💖 ${nameForMsg} loves you! 💖` : `💔 ${nameForMsg} loves you not... 💔`;
+    statusText.textContent = lovesMe ? `💖 ${nameForMsg} loves you! 💖` : `💔 ${nameForMsg} loves you not... 💔 🥺`;
     statusText.classList.add(lovesMe ? 'loves-me' : 'loves-me-not');
     // Trigger particles and yoshi emotion
     triggerRoundEndEffects(lovesMe);

@@ -521,3 +521,30 @@ canvas {
     filter: blur(3px);
   }
 }
+
+/* Sad emoji overlay shown on loss */
+.sad-emoji-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1100;
+}
+
+.sad-emoji {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  animation: sadEmojiPop 1.2s ease forwards, sadEmojiDrift 1.8s ease-in forwards;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.35);
+}
+
+@keyframes sadEmojiPop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  35% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 1; }
+}
+
+@keyframes sadEmojiDrift {
+  0% { transform: translate(-50%, -50%) translateY(0); }
+  100% { transform: translate(-50%, -50%) translateY(18px); opacity: 0; }
+}
