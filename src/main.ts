@@ -109,7 +109,7 @@ scene.add(sunLight);
 function createSky() {
   const skyGeometry = new THREE.SphereGeometry(200, 32, 32);
   const textureLoader = new THREE.TextureLoader();
-  const skyTexture = textureLoader.load('/sunset.png');
+  const skyTexture = textureLoader.load('/sunset_sky.png');
   // @ts-ignore
   if ('SRGBColorSpace' in THREE) skyTexture.colorSpace = THREE.SRGBColorSpace;
   skyTexture.wrapS = THREE.ClampToEdgeWrapping;
