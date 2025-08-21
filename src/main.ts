@@ -29,7 +29,6 @@ let yoshiRightElbow: THREE.Group;
 
 // Pink character references
 let pinkCharacter: THREE.Group | null = null;
-let pinkCharacterMixer: THREE.AnimationMixer | null = null;
 let isPinkCharacterWalking = false;
 let isPinkCharacterWaving = false;
 let isPinkCharacterWalkingAway = false;
@@ -37,7 +36,6 @@ let pinkWalkStartTime = 0;
 let pinkWalkDuration = 6000; // ms to walk across bridge (longer for more distance)
 let pinkWalkAwayDuration = 20000; // ms to walk away into distance (doubled for double distance)
 let pinkWaveStartTime = 0;
-let isLoveOutcome = true; // Track if the outcome was positive
 // Pink nametag
 let pinkNametagSprite: THREE.Sprite | null = null;
 
@@ -1581,7 +1579,6 @@ function removePinkNametag() {
 
 // Start pink character walk and wave animation
 function startPinkCharacterSequence(lovesMe: boolean) {
-  isLoveOutcome = lovesMe;
   
   if (!pinkCharacter) {
     pinkCharacter = createPinkCharacter();
