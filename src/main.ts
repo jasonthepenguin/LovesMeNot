@@ -35,7 +35,7 @@ let isPinkCharacterWaving = false;
 let isPinkCharacterWalkingAway = false;
 let pinkWalkStartTime = 0;
 let pinkWalkDuration = 6000; // ms to walk across bridge (longer for more distance)
-let pinkWalkAwayDuration = 10000; // ms to walk away into distance
+let pinkWalkAwayDuration = 20000; // ms to walk away into distance (doubled for double distance)
 let pinkWaveStartTime = 0;
 let isLoveOutcome = true; // Track if the outcome was positive
 
@@ -1457,6 +1457,15 @@ function startPinkCharacterSequence(lovesMe: boolean) {
     scene.add(pinkCharacter);
   }
   
+  // Reset opacity for all meshes
+  pinkCharacter.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      const mat = child.material as THREE.MeshPhongMaterial;
+      mat.transparent = true;
+      mat.opacity = 1;
+    }
+  });
+  
   if (lovesMe) {
     // Walk toward the castle and wave
     pinkCharacter.position.set(0, 4, 55);
@@ -1945,8 +1954,8 @@ function animate() {
       const walkElapsed = nowMs - pinkWalkStartTime;
       const walkProgress = Math.min(1, walkElapsed / pinkWalkAwayDuration);
       
-      // Walk away from z=25 to z=80 (far into the distance)
-      pinkCharacter.position.z = 25 + (walkProgress * 55);
+      // Walk away from z=25 to z=215 (extremely far into the distance)
+      pinkCharacter.position.z = 25 + (walkProgress * 190);
       
       // Walking animation: bob up and down, swing legs
       pinkCharacter.position.y = 4 + Math.sin(walkElapsed * 0.008) * 0.15;
@@ -1959,14 +1968,19 @@ function animate() {
         rightLeg.rotation.x = -Math.sin(walkElapsed * 0.008) * 0.3;
       }
       
-      // Fade out as they walk away
-      if (walkProgress > 0.7) {
-        const fadeProgress = (walkProgress - 0.7) / 0.3;
+      // Fade out as they walk away - wait 2 seconds then fade quickly
+      if (walkElapsed > 2000) { // Wait 2 seconds before starting fade
+        const fadeStartProgress = (walkElapsed - 2000) / pinkWalkAwayDuration;
+        const fadeProgress = Math.min(1, fadeStartProgress * 2); // Accelerate the fade after delay
+        const opacity = Math.max(0, 1 - fadeProgress); // Fade to fully transparent
         pinkCharacter.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             const mat = child.material as THREE.MeshPhongMaterial;
-            mat.transparent = true;
-            mat.opacity = 1 - fadeProgress;
+            if (!mat.transparent) {
+              mat.transparent = true;
+            }
+            mat.opacity = opacity;
+            mat.needsUpdate = true;
           }
         });
       }
