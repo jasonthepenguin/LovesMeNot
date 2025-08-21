@@ -59,6 +59,9 @@ let arpIndex = 0;
 let musicToggleBtn: HTMLButtonElement | null = null;
 let autoStartArmed = false;
 
+// Pluck sound effect
+let pluckSynth: Tone.Synth | null = null;
+
 async function startBackgroundMusic(): Promise<void> {
   // Ensure audio context is unlocked by a user gesture
   await Tone.start().catch(() => {});
@@ -1446,10 +1449,51 @@ function createLoveLetterOverlay() {
   setupAutoMusicStart();
 }
 
+// Initialize and play pluck sound effect
+async function initializePluckSound() {
+  if (pluckSynth) return;
+  
+  // Ensure audio context is started
+  await Tone.start().catch(() => {});
+  
+  // Create a gentle pluck synth with a soft, mellow sound
+  pluckSynth = new Tone.Synth({
+    oscillator: { type: 'sine' },
+    envelope: {
+      attack: 0.02,
+      decay: 0.6,
+      sustain: 0,
+      release: 1.2
+    },
+    volume: -24
+  }).toDestination();
+}
+
+function playPluckSound() {
+  if (!pluckSynth) {
+    initializePluckSound().then(() => {
+      if (pluckSynth) {
+        // Play a random note in a pleasant range for variety
+        const notes = ['C5', 'D5', 'E5', 'G5', 'A5', 'C6'];
+        const note = notes[Math.floor(Math.random() * notes.length)];
+        pluckSynth.triggerAttackRelease(note, '8n');
+      }
+    });
+  } else {
+    // Play a random note in a pleasant range for variety
+    const notes = ['C5', 'D5', 'E5', 'G5', 'A5', 'C6'];
+    const note = notes[Math.floor(Math.random() * notes.length)];
+    pluckSynth.triggerAttackRelease(note, '8n');
+  }
+}
+
 function pullPetal(petal: HTMLElement) {
   if (petal.classList.contains('pulled')) return;
   
   petal.classList.add('pulled');
+  
+  // Play pluck sound effect
+  playPluckSound();
   
   // Update game state
   lovesMe = !lovesMe;
