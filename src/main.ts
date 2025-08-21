@@ -82,6 +82,8 @@ controls.maxDistance = 50;
 camera.position.set(-7.98, 21.07, 22.90);
 // Set the look direction based on provided look vector; set controls target so it persists
 const lookVectorInit = new THREE.Vector3(0.207, -0.342, -0.917);
+// Move camera a bit forward along the initial look direction
+camera.position.addScaledVector(lookVectorInit, 5.0);
 const lookTarget = new THREE.Vector3().copy(camera.position).add(lookVectorInit);
 camera.lookAt(lookTarget);
 controls.target.copy(lookTarget);
@@ -997,8 +999,8 @@ function emitHeartsBurst(count = 18) {
       origin: origin.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.4, (Math.random()) * 0.2, (Math.random() - 0.5) * 0.4)),
       velocity: new THREE.Vector3(vx * speed, vy, vz * speed),
       lifeTimeMs: 2200 + Math.random() * 600,
-      startScale: 0.14 + Math.random() * 0.06,
-      endScale: 0.05 + Math.random() * 0.04,
+      startScale: 0.45 + Math.random() * 0.15,
+      endScale: 0.20 + Math.random() * 0.08,
       accelY: -0.35,
     });
   }
