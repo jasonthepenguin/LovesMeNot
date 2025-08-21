@@ -33,9 +33,8 @@ let pinkCharacterMixer: THREE.AnimationMixer | null = null;
 let isPinkCharacterWalking = false;
 let isPinkCharacterWaving = false;
 let pinkWalkStartTime = 0;
-let pinkWalkDuration = 4000; // ms to walk across bridge
+let pinkWalkDuration = 6000; // ms to walk across bridge (longer for more distance)
 let pinkWaveStartTime = 0;
-let pinkWaveDuration = 3000; // ms to wave
 
 // Particles and emotion state
 let activeParticles: Array<{
@@ -1450,8 +1449,8 @@ function showSadEmojiOverlay() {
 function startPinkCharacterSequence() {
   if (!pinkCharacter) {
     pinkCharacter = createPinkCharacter();
-    // Start position: far side of bridge, raised up properly
-    pinkCharacter.position.set(0, 4, 40);
+    // Start position: much further back for longer walk
+    pinkCharacter.position.set(0, 4, 55);
     pinkCharacter.rotation.y = Math.PI; // Face toward castle
     scene.add(pinkCharacter);
   }
@@ -1699,8 +1698,8 @@ function pullPetal(petal: HTMLElement) {
     // Waypoint 1 from screenshot: Pos (-16.47, 22.86, 9.69), Look (0.863, -0.506, -0.007)
     const wp1Pos = new THREE.Vector3(-16.47, 22.86, 9.69);
     const wp1Target = wp1Pos.clone().add(new THREE.Vector3(0.863, -0.506, -0.007));
-    // Waypoint 2: Pos (2.73, 21.67, -5.64), Look (-0.311, -0.418, 0.854)
-    const wp2Pos = new THREE.Vector3(2.73, 21.67, -5.64);
+    // Waypoint 2: Raised camera position but same look direction
+    const wp2Pos = new THREE.Vector3(2.73, 24.5, -5.64);  // Raised Y from 21.67 to 24.5
     const wp2Target = wp2Pos.clone().add(new THREE.Vector3(-0.311, -0.418, 0.854));
 
     // Keep the 2D flower visible during the cinematic so the petal-less flower stays on screen
@@ -1906,8 +1905,8 @@ function animate() {
       const walkElapsed = nowMs - pinkWalkStartTime;
       const walkProgress = Math.min(1, walkElapsed / pinkWalkDuration);
       
-      // Walk from z=40 to z=20 (stop before reaching castle)
-      pinkCharacter.position.z = 40 - (walkProgress * 20);
+      // Walk from z=55 to z=23 (stop a bit further back)
+      pinkCharacter.position.z = 55 - (walkProgress * 32);
       
       // Walking animation: bob up and down, swing legs
       pinkCharacter.position.y = 4 + Math.sin(walkElapsed * 0.008) * 0.15;
